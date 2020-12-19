@@ -3,10 +3,17 @@
 #include <complex.h>
 #include <sys/param.h>
 
-#define WINDOW_WIDTH (2000)
-#define WINDOW_HEIGHT (2000)
+#define WINDOW_WIDTH (2048)
+#define WINDOW_HEIGHT (2048)
+#define MAXITER (50)
 
-void renderMandel(Uint64 *screenbuf);
+static int renderMandelThread(void *threadData);
+
+struct ThreadData {
+    Uint32 * screenbuf;
+    Uint32 startRow;
+    Uint32 endRow;
+};
 
 int main (void) {
     SDL_Init(SDL_INIT_VIDEO);
@@ -19,16 +26,27 @@ int main (void) {
     int pitch;
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
 
-    renderMandel(screenbuf);
+
+    struct ThreadData td1, td2, td3, td4;
+
+    td1.screenbuf = screenbuf;
+    td1.startRow = 0;
+    td1.endRow = 1023;
+
+    td2.screenbuf = screenbuf;
+    td2.startRow = 1024;
+    td2.endRow = 2047;
+
+    SDL_Thread *thread1;
+    SDL_Thread *thread2;
+
+    thread1 = SDL_CreateThread(renderMandelThread, "mandelThread1", &td1);
+    thread2 = SDL_CreateThread(renderMandelThread, "mandelThread2", &td2);
 
 
-    // for (row = 0; row < MOOSEPIC_H; ++row) {
-    //     dst = (Uint32*)((Uint8*)pixels + row * pitch);
-    //     for (col = 0; col < MOOSEPIC_W; ++col) {
-    //         color = &MooseColors[*src++];
-    //         *dst++ = (0xFF000000|(color->r<<16)|(color->g<<8)|color->b);
-    //     }
-    // }    
+    SDL_WaitThread(thread1, NULL);
+    SDL_WaitThread(thread2, NULL);
+
     // http://hg.libsdl.org/SDL/file/default/test/teststreaming.c
     // https://developer.nvidia.com/blog/even-easier-introduction-cuda/
     // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
@@ -39,24 +57,26 @@ int main (void) {
     SDL_RenderCopy(rend, tex, NULL, NULL);
 
     SDL_RenderPresent(rend); // final screen render
-    SDL_Delay(3000);
+    SDL_Delay(5000);
     SDL_DestroyRenderer(rend);
     SDL_DestroyWindow(win);
     SDL_Quit();
-
 }
 
-void renderMandel(Uint64 *screenbuf) {
-    Uint64 *sb;
-    sb = (Uint64*)((Uint8*)screenbuf + 1000 * 8000 + 1000 * 4);
-    *sb = 0xffffffff;
+static int renderMandelThread(void *threadData) {
+
+    struct ThreadData *td = threadData;
 
     double complex z, zi;
     double xv, yv;
-    int iter = 50;
+    Uint32 color;
+    Uint32 colorbias;
+    Uint32 *dst;
 
-    for ( int x = 0; x < WINDOW_WIDTH; x++ ){
-        for ( int y = 0; y < WINDOW_HEIGHT; y++ ){
+    dst = (Uint32*)((Uint8*)td->screenbuf +  td->startRow * WINDOW_WIDTH*4);
+
+    for ( int y = td->startRow; y <= td->endRow; y++ ){
+        for ( int x = 0; x < WINDOW_WIDTH; x++ ){
 
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
             xv = - 2 + (double) x / WINDOW_WIDTH  * 4;
@@ -64,24 +84,20 @@ void renderMandel(Uint64 *screenbuf) {
 
             zi = xv + yv * I;  // initial Z value
             z = 0;
-            Uint32 color;
-            Uint32 colorbias;
             
             color = 0xffffffff; // white as default for values that converge to 0
 
-
-
             // Mandelbrot calc for current (x,y) pixel
-            for ( int i = 0; i < iter; i++ ) {
+            for ( int i = 0; i < MAXITER; i++ ) {
                 z = z*z + zi;
                 if (cabs(z) > 2) {
                     colorbias = MIN(255,(int) 255*i/40);
-                    color = 0xFF000000 + colorbias * 0x10000 + colorbias * 0x100 + colorbias;
+                    color = (0xFF000000|(colorbias<<16)|(colorbias<<8)|colorbias);
                     break;
                 }
             }
-            sb = (Uint64*)((Uint8*)screenbuf + y * 8000 + x*4);
-            *sb = color;
+            *dst++ = color;
         }
     }
+    return 0;
 }
