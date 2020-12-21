@@ -8,14 +8,14 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/sdltest",
+            "program": "${workspaceFolder}/mandel",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "preLaunchTask": "Make sdltest",
+            "preLaunchTask": "Make mandel",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

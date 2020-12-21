@@ -3,10 +3,10 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "Make sdltest",
+			"label": "Make mandel",
 			"command": "/usr/bin/make",
 			"args": [
-				"sdltest"
+				"rebuild"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

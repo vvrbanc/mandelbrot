@@ -1,24 +1,35 @@
-CFLAGS := `sdl2-config --libs --cflags` --std=c11 -Wall -lSDL2_image -lm -ggdb3 -O0 -march=native -mtune=native -pipe -Wall
-# CFLAGS := `sdl2-config --libs --cflags` --std=c11 -Wall -lSDL2_image -lm -O3 -march=native -mtune=native -pipe -Wall
+CFLAGS := `sdl2-config --libs --cflags` --std=c11 -Wall -lSDL2_image -lm -march=native -mtune=native -pipe -Wall
+# CFLAGS := $(CFLAGS) -ggdb3 -O0
+CFLAGS := $(CFLAGS) -O3
+
+# CC := gcc
+# HDRS :=
+# SRCS := mandelmain.c
+# OBJS := $(SRCS:.c=.o)
+# EXEC := mandel
+
+# $(EXEC): $(OBJS) $(HDRS) Makefile
+# 	echo $(CC) -o $@ $(OBJS) $(CFLAGS)
 
 
-CC := gcc
-HDRS :=
-SRCS := sdltest.c
-OBJS := $(SRCS:.c=.o)
-EXEC := sdltest
+all: mandel
 
+rebuild: clean mandel
 
-all: $(EXEC)
+dlink.o: mandelcuda.o
+	nvcc -O3 -dlink mandelcuda.o -o dlink.o -gencode arch=compute_61,code=sm_61 -dlink
 
+mandelcuda.o:
+	nvcc -O3 -dc mandelcuda.cu -o mandelcuda.o -gencode arch=compute_61,code=sm_61
 
-$(EXEC): $(OBJS) $(HDRS) Makefile
-	$(CC) -o $@ $(OBJS) $(CFLAGS)
+mandelmain.o:
+	gcc $(CFLAGS) -c -o mandelmain.o mandelmain.c
+
+mandel: dlink.o mandelmain.o
+	gcc $(CFLAGS) -o mandel mandelmain.o dlink.o mandelcuda.o -L/opt/cuda/targets/x86_64-linux/lib -lm -lcudadevrt -lcudart
 
 clean:
-	rm -f $(EXEC) $(OBJS)
+	rm -f mandelcuda.o mandelmain.o dlink.o mandel
 
 .PHONY: all clean
-
-
 
