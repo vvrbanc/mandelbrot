@@ -22,14 +22,17 @@ dlink.o: mandelcuda.o
 mandelcuda.o:
 	nvcc -O3 -dc mandelcuda.cu -o mandelcuda.o -gencode arch=compute_61,code=sm_61
 
+mandelcpu.o:
+	gcc $(CFLAGS) -c -o mandelcpu.o mandelcpu.c
+
 mandelmain.o:
 	gcc $(CFLAGS) -c -o mandelmain.o mandelmain.c
 
-mandel: dlink.o mandelmain.o
-	gcc $(CFLAGS) -o mandel mandelmain.o dlink.o mandelcuda.o -L/opt/cuda/targets/x86_64-linux/lib -lm -lcudadevrt -lcudart
+mandel: dlink.o mandelmain.o mandelcpu.o
+	gcc $(CFLAGS) -o mandel mandelmain.o dlink.o mandelcuda.o mandelcpu.o -L/opt/cuda/targets/x86_64-linux/lib -lm -lcudadevrt -lcudart
 
 clean:
-	rm -f mandelcuda.o mandelmain.o dlink.o mandel
+	rm -f mandelcuda.o mandelmain.o dlink.o mandel mandelcpu.o
 
 .PHONY: all clean
 
