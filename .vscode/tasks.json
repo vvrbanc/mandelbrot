@@ -16,6 +16,22 @@
 			],
 			"group": "build",
 			"detail": "compiler: /usr/bin/gcc"
+		},
+		{
+			"type": "cppbuild",
+			"label": "Make mandelbrot.run",
+			"command": "/usr/bin/make",
+			"args": [
+				"rebuildmr"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: /usr/bin/gcc"
 		}
 	]
 }

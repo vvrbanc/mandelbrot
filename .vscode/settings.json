@@ -1,5 +1,16 @@
 {
     "files.associations": {
-        "hash_map": "c"
+        "hash_map": "c",
+        "array": "c",
+        "deque": "c",
+        "list": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "unordered_set": "c",
+        "vector": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "regex": "c",
+        "valarray": "c"
     }
 }

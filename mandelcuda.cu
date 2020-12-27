@@ -1,27 +1,26 @@
-#include <sys/param.h>
 #include "settings.h"
+#include <sys/param.h>
 
-struct RenderSettings
-{
-    unsigned int *outputBuffer;
-    double x0;
-    double y0;
-    double zoom;
-    double xoffset;
-    double yoffset;
-    unsigned int iterations;
-    long int deviceBuffer;
+struct RenderSettings {
+  unsigned int *outputBuffer;
+  double x0;
+  double y0;
+  double zoom;
+  double xoffset;
+  double yoffset;
+  unsigned int iterations;
+  long int deviceBuffer;
 };
 
 int *deviceBuffer;
 
 __global__ void mandelbrotCalc(struct RenderSettings rs) {
 
-  int * deviceBuffer = (int *) rs.deviceBuffer;
+  int *deviceBuffer = (int *)rs.deviceBuffer;
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;
 
-  double cReal, cImag;
+  double cReal, cImag, zReal, zImag, z2Real, z2Imag;
   int color;
   int colorbias;
 
@@ -34,17 +33,18 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
   double ypitch = (y1 - y2) / WINDOW_HEIGHT;
 
   for (int y = index; y < WINDOW_HEIGHT; y += stride) {
+
     for (int x = 0; x < WINDOW_WIDTH; x++) {
 
       cReal = x1 + xpitch * x;
       cImag = y1 - ypitch * y;
 
-      double zReal = 0.0f, zImag = 0.0, z2Real, z2Imag;
-      color = 0xffffffff; // white as default for values that converge to 0
+      zReal = cReal;
+      zImag = cImag;
 
-      int i;
+      color = 0; // white as default for values that converge to 0
 
-      for (i = 0; i < rs.iterations; i++) {
+      for (int i = 0; i < rs.iterations; i++) {
         z2Real = zReal * zReal - zImag * zImag + cReal;
         z2Imag = 2.0f * zReal * zImag + cImag;
 
@@ -66,13 +66,13 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
 
 extern "C" void mandelbrotCUDA(struct RenderSettings rs) {
 
-  unsigned int * screenBuffer = rs.outputBuffer;
+  unsigned int *screenBuffer = rs.outputBuffer;
 
   cudaMalloc((void **)&deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
-  rs.deviceBuffer = (long int) deviceBuffer;
+  rs.deviceBuffer = (long int)deviceBuffer;
   mandelbrotCalc<<<16, 128>>>(rs);
   cudaDeviceSynchronize();
-  cudaMemcpy(screenBuffer, deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4, cudaMemcpyDeviceToHost);
+  cudaMemcpy(screenBuffer, deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4,
+             cudaMemcpyDeviceToHost);
   cudaFree(deviceBuffer);
-
 }

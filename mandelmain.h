@@ -1,3 +1,4 @@
+
 #ifndef MANDELMAIN_H
 #define MANDELMAIN_H
 
@@ -5,9 +6,15 @@
 #include "settings.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_stdinc.h>
-#include <complex.h>
 #include <stdio.h>
 #include <sys/param.h>
+#include <immintrin.h>
+
+enum rendertargets {
+    TARGET_CPU,
+    TARGET_AVX,
+    TARGET_CUDA
+};
 
 struct RenderData
 {
@@ -36,9 +43,10 @@ struct ThreadData
 
 
 void mandelbrotCPU(struct RenderSettings rs);
+void mandelbrotAVX(struct RenderSettings rs);
+void mandelbrotCUDA(struct RenderSettings rs);
 int renderMandelThread(void *td);
 
-void mandelbrotCUDA(struct RenderSettings rs);
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);
 
 #endif

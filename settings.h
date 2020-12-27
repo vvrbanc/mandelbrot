@@ -3,6 +3,5 @@
 
 #define WINDOW_WIDTH (2048)
 #define WINDOW_HEIGHT (2048)
-#define MAXITER (2000)
 
 #endif

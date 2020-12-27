@@ -1,18 +1,49 @@
 #include "mandelmain.h"
 #include <complex.h>
+#include <time.h>
 
 int *deviceBuffer;
 
-void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs) {
+int rendertarget = TARGET_AVX;
+// int rendertarget = TARGET_CUDA;
+// int rendertarget = TARGET_CPU;
+
+void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs)
+{
     void *screenbuf;
     int pitch;
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
 
     rs.outputBuffer = screenbuf;
 
-    // mandelbrotCUDA(rs);
+    time_t start, end;
+    struct timespec curTime;
 
-    mandelbrotCPU(rs);
+    clock_gettime(CLOCK_REALTIME, &curTime);
+    start = curTime.tv_sec * 1000000000 + curTime.tv_nsec;
+
+    switch (rendertarget)
+    {
+    case TARGET_CUDA:
+        mandelbrotCUDA(rs);
+        break;
+    case TARGET_AVX:
+        mandelbrotAVX(rs);
+        break;
+    case TARGET_CPU:
+        mandelbrotCPU(rs);
+        break;
+    default:
+        mandelbrotCPU(rs);
+        break;
+    }
+
+    clock_gettime(CLOCK_REALTIME, &curTime);
+    end = curTime.tv_sec * 1000000000 + curTime.tv_nsec;
+
+    double duration_sec = (double)(end - start) / 1000000000.0;
+
+    printf("Time: %f \n", duration_sec);
 
     SDL_UnlockTexture(tex);
 
@@ -20,10 +51,9 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     SDL_RenderCopy(rend, tex, NULL, NULL);
 
     SDL_RenderPresent(rend);
-
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -42,11 +72,31 @@ int main(void)
     rs.zoom = 1.0;
     rs.xoffset = 0;
     rs.yoffset = 0;
-    rs.iterations = 20;
+    rs.iterations = 50;
+            // rs.xoffset = -1.456241426611797;
+            // rs.yoffset = -0.070233196159122;
+            // rs.zoom = 11.390625;
+            // rs.iterations = 50;
+    int close_requested = 0;
+
+    if (argc > 1 && strcmp(argv[1], "bench") == 0)
+    {
+        close_requested = 1;
+
+        rs.xoffset = -1.484935782949454;
+        rs.zoom = 16585998.481410;
+        rs.iterations = 5000;
+
+        rendertarget = TARGET_CPU;
+        renderWindow(rend, tex, rs);
+        rendertarget = TARGET_AVX;
+        renderWindow(rend, tex, rs);
+        rendertarget = TARGET_CUDA;
+
+    }
 
     renderWindow(rend, tex, rs);
 
-    int close_requested = 0;
     while (!close_requested)
     {
         SDL_Event event;
@@ -65,7 +115,8 @@ int main(void)
                     renderWindow(rend, tex, rs);
                     break;
                 case SDL_SCANCODE_KP_MINUS:
-                    rs.zoom = rs.zoom / 1.5;
+                    if (rs.zoom > 0.5)
+                        rs.zoom = rs.zoom / 1.5;
                     renderWindow(rend, tex, rs);
                     break;
                 case SDL_SCANCODE_KP_DIVIDE:
@@ -100,11 +151,24 @@ int main(void)
                     rs.iterations = rs.iterations / 2;
                     renderWindow(rend, tex, rs);
                     break;
+                case SDL_SCANCODE_TAB:
+                    if (rendertarget == 2)
+                        rendertarget = 0;
+                    else
+                        rendertarget++;
+
+                    renderWindow(rend, tex, rs);
+                    SDL_Delay(100);
+                    break;
                 default:
                     break;
                 }
+                printf("Xoffset: %.15f\n", rs.xoffset);
+                printf("Yoffset: %.15f\n", rs.yoffset);
                 printf("Zoom: %f\n", rs.zoom);
                 printf("Iter: %d\n", rs.iterations);
+                printf("rendertarget: %d\n", rendertarget);
+                printf("\n");
                 break;
             case 1024:
                 break;
