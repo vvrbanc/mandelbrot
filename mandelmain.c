@@ -21,7 +21,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
 
     switch (rendertarget) {
     case TARGET_CUDA:
-        mandelbrotCUDA2(rs);
+        mandelbrotCUDA(rs);
         break;
     case TARGET_AVX:
         mandelbrotAVX(rs);

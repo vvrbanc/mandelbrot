@@ -45,10 +45,6 @@ int main(void) {
     SDL_WaitThread(thread1, NULL);
     SDL_WaitThread(thread2, NULL);
 
-    // http://hg.libsdl.org/SDL/file/default/test/teststreaming.c
-    // https://developer.nvidia.com/blog/even-easier-introduction-cuda/
-    // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
-
     SDL_UnlockTexture(tex);
 
     SDL_RenderClear(rend);
@@ -83,7 +79,7 @@ static int renderMandelThread(void *threadData) {
             zi = xv + yv * I; // initial Z value
             z = 0;
 
-            color = 0xffffffff; // white as default for values that converge to 0
+            color = 0xff000000; // black as default for values that converge to 0
 
             // Mandelbrot calc for current (x,y) pixel
             for (int i = 0; i < MAXITER; i++) {

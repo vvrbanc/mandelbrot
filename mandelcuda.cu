@@ -88,7 +88,7 @@ extern "C" void mandelbrotCUDA(struct RenderSettings rs) {
     initCUDA();
     unsigned int *screenBuffer = rs.outputBuffer;
     rs.deviceBuffer = (long int)deviceBuffer;
-    mandelbrotCalc2<<<1024, 1024>>>(rs);
+    mandelbrotCalc<<<1024, 1024>>>(rs);
     cudaDeviceSynchronize();
     cudaMemcpy(screenBuffer, deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4, cudaMemcpyDeviceToHost);
 }

@@ -3,7 +3,7 @@ CFLAGS := `sdl2-config --libs --cflags` --std=c11 -Wall -lSDL2_image -lm -march=
 CFLAGS := $(CFLAGS) -O3 -ffast-math -fomit-frame-pointer -fno-finite-math-only -flto
 
 
-all: mandel mandelbrot.run
+all: mandel
 
 rebuild: clean all
 
