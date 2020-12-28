@@ -9,11 +9,9 @@ rebuild: clean all
 
 dlink.o: mandelcuda.o
 	nvcc -O3 -dlink mandelcuda.o -o dlink.o
-	# -gencode arch=compute_61,code=sm_61
 
 mandelcuda.o:
 	nvcc -O3 -dc mandelcuda.cu -o mandelcuda.o
-	# -gencode arch=compute_61,code=sm_61
 
 mandelcpu.o:
 	gcc -c -o mandelcpu.o mandelcpu.c $(CFLAGS)

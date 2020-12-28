@@ -1,6 +1,6 @@
-#include <stdio.h>
 #include <SDL2/SDL.h>
 #include <complex.h>
+#include <stdio.h>
 #include <sys/param.h>
 
 #define WINDOW_WIDTH (2048)
@@ -10,24 +10,23 @@
 static int renderMandelThread(void *threadData);
 
 struct ThreadData {
-    Uint32 * screenbuf;
+    Uint32 *screenbuf;
     Uint32 startRow;
     Uint32 endRow;
 };
 
-int main (void) {
+int main(void) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_Window*   win  = SDL_CreateWindow("sdltest", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
-    SDL_Renderer* rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
-    SDL_Texture * tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_Window *win = SDL_CreateWindow("sdltest", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Texture *tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     void *screenbuf;
     int pitch;
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
 
-
-    struct ThreadData td1, td2, td3, td4;
+    struct ThreadData td1, td2;
 
     td1.screenbuf = screenbuf;
     td1.startRow = 0;
@@ -42,7 +41,6 @@ int main (void) {
 
     thread1 = SDL_CreateThread(renderMandelThread, "mandelThread1", &td1);
     thread2 = SDL_CreateThread(renderMandelThread, "mandelThread2", &td2);
-
 
     SDL_WaitThread(thread1, NULL);
     SDL_WaitThread(thread2, NULL);
@@ -73,26 +71,26 @@ static int renderMandelThread(void *threadData) {
     Uint32 colorbias;
     Uint32 *dst;
 
-    dst = (Uint32*)((Uint8*)td->screenbuf +  td->startRow * WINDOW_WIDTH*4);
+    dst = (Uint32 *)((Uint8 *)td->screenbuf + td->startRow * WINDOW_WIDTH * 4);
 
-    for ( int y = td->startRow; y <= td->endRow; y++ ){
-        for ( int x = 0; x < WINDOW_WIDTH; x++ ){
+    for (int y = td->startRow; y <= td->endRow; y++) {
+        for (int x = 0; x < WINDOW_WIDTH; x++) {
 
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
-            xv = - 2 + (double) x / WINDOW_WIDTH  * 4;
-            yv =   2 - (double) y / WINDOW_HEIGHT * 4;
+            xv = -2 + (double)x / WINDOW_WIDTH * 4;
+            yv = 2 - (double)y / WINDOW_HEIGHT * 4;
 
-            zi = xv + yv * I;  // initial Z value
+            zi = xv + yv * I; // initial Z value
             z = 0;
-            
+
             color = 0xffffffff; // white as default for values that converge to 0
 
             // Mandelbrot calc for current (x,y) pixel
-            for ( int i = 0; i < MAXITER; i++ ) {
-                z = z*z + zi;
+            for (int i = 0; i < MAXITER; i++) {
+                z = z * z + zi;
                 if (cabs(z) > 2) {
-                    colorbias = MIN(255,(int) 255*i/40);
-                    color = (0xFF000000|(colorbias<<16)|(colorbias<<8)|colorbias);
+                    colorbias = MIN(255, (int)255 * i / 40);
+                    color = (0xFF000000 | (colorbias << 16) | (colorbias << 8) | colorbias);
                     break;
                 }
             }

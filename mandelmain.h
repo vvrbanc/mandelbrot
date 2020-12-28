@@ -24,8 +24,8 @@ struct RenderData {
 
 struct RenderSettings {
     unsigned int *outputBuffer;
-    double x0;
-    double y0;
+    double width;
+    double height;
     double zoom;
     double xoffset;
     double yoffset;
@@ -45,6 +45,7 @@ void mandelbrotCPU(struct RenderSettings rs);
 void mandelbrotAVX(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
 void initCUDA();
+void freeCUDA();
 int renderMandelThread(void *td);
 
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);

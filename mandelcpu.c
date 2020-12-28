@@ -4,10 +4,10 @@
 void mandelbrotCPU(struct RenderSettings rs) {
     Uint32 *dst;
 
-    double x1 = rs.x0 - 2.0 / rs.zoom + rs.xoffset;
-    double x2 = rs.x0 + 2.0 / rs.zoom + rs.xoffset;
-    double y1 = rs.y0 + 2.0 / rs.zoom + rs.yoffset;
-    double y2 = rs.y0 - 2.0 / rs.zoom + rs.yoffset;
+    double x1 = rs.xoffset - 2.0 / rs.zoom;
+    double x2 = rs.xoffset + 2.0 / rs.zoom;
+    double y1 = rs.yoffset + 2.0 / rs.zoom;
+    double y2 = rs.yoffset - 2.0 / rs.zoom;
 
     double xpitch = (x2 - x1) / WINDOW_WIDTH;
     double ypitch = (y1 - y2) / WINDOW_HEIGHT;
@@ -60,10 +60,10 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
     Uint32 *dst;
 
-    double x1 = rs.x0 - 2.0 / rs.zoom + rs.xoffset;
-    double x2 = rs.x0 + 2.0 / rs.zoom + rs.xoffset;
-    double y1 = rs.y0 + 2.0 / rs.zoom + rs.yoffset;
-    double y2 = rs.y0 - 2.0 / rs.zoom + rs.yoffset;
+    double x1 = rs.xoffset - 2.0 / rs.zoom;
+    double x2 = rs.xoffset + 2.0 / rs.zoom;
+    double y1 = rs.yoffset + 2.0 / rs.zoom;
+    double y2 = rs.yoffset - 2.0 / rs.zoom;
 
     double xpitch = (x2 - x1) / WINDOW_WIDTH;
     double ypitch = (y1 - y2) / WINDOW_HEIGHT;

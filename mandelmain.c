@@ -21,7 +21,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
 
     switch (rendertarget) {
     case TARGET_CUDA:
-        mandelbrotCUDA(rs);
+        mandelbrotCUDA2(rs);
         break;
     case TARGET_AVX:
         mandelbrotAVX(rs);
@@ -61,17 +61,19 @@ int main(int argc, char *argv[]) {
                                          WINDOW_WIDTH, WINDOW_HEIGHT);
 
     struct RenderSettings rs;
+    initCUDA();
 
-    rs.x0 = 0;
-    rs.y0 = 0;
     rs.zoom = 1.0;
     rs.xoffset = 0;
     rs.yoffset = 0;
     rs.iterations = 50;
+    rs.width = WINDOW_WIDTH;
+    rs.height = WINDOW_HEIGHT;
     // rs.xoffset = -1.456241426611797;
     // rs.yoffset = -0.070233196159122;
     // rs.zoom = 11.390625;
     // rs.iterations = 50;
+
     // rs.xoffset = -1.484935782949454;
     // rs.zoom = 16585998.481410;
     // rs.iterations = 5000;
@@ -79,6 +81,11 @@ int main(int argc, char *argv[]) {
 
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;
+
+        // rs.xoffset = -1.456241426611797;
+        // rs.yoffset = -0.070233196159122;
+        // rs.zoom = 11.390625;
+        // rs.iterations = 50;
 
         rs.xoffset = -1.484935782949454;
         rs.zoom = 16585998.481410;
