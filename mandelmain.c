@@ -2,14 +2,11 @@
 #include <complex.h>
 #include <time.h>
 
-int *deviceBuffer;
-
-int rendertarget = TARGET_AVX;
-// int rendertarget = TARGET_CUDA;
+// int rendertarget = TARGET_AVX;
+int rendertarget = TARGET_CUDA;
 // int rendertarget = TARGET_CPU;
 
-void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs)
-{
+void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs) {
     void *screenbuf;
     int pitch;
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
@@ -22,8 +19,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     clock_gettime(CLOCK_REALTIME, &curTime);
     start = curTime.tv_sec * 1000000000 + curTime.tv_nsec;
 
-    switch (rendertarget)
-    {
+    switch (rendertarget) {
     case TARGET_CUDA:
         mandelbrotCUDA(rs);
         break;
@@ -53,8 +49,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     SDL_RenderPresent(rend);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window *win =
@@ -73,46 +68,43 @@ int main(int argc, char *argv[])
     rs.xoffset = 0;
     rs.yoffset = 0;
     rs.iterations = 50;
-            // rs.xoffset = -1.456241426611797;
-            // rs.yoffset = -0.070233196159122;
-            // rs.zoom = 11.390625;
-            // rs.iterations = 50;
+    // rs.xoffset = -1.456241426611797;
+    // rs.yoffset = -0.070233196159122;
+    // rs.zoom = 11.390625;
+    // rs.iterations = 50;
+    // rs.xoffset = -1.484935782949454;
+    // rs.zoom = 16585998.481410;
+    // rs.iterations = 5000;
     int close_requested = 0;
 
-    if (argc > 1 && strcmp(argv[1], "bench") == 0)
-    {
+    if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;
 
         rs.xoffset = -1.484935782949454;
         rs.zoom = 16585998.481410;
         rs.iterations = 5000;
 
-        rendertarget = TARGET_CPU;
-        renderWindow(rend, tex, rs);
-        rendertarget = TARGET_AVX;
-        renderWindow(rend, tex, rs);
+        // rendertarget = TARGET_CPU;
+        // renderWindow(rend, tex, rs);
+        // rendertarget = TARGET_AVX;
+        // renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
-
     }
 
     renderWindow(rend, tex, rs);
 
-    while (!close_requested)
-    {
+    while (!close_requested) {
         SDL_Event event;
         SDL_PollEvent(&event);
         {
-            switch (event.type)
-            {
+            switch (event.type) {
             case SDL_QUIT:
                 close_requested = 1;
                 break;
             case SDL_KEYDOWN:
-                switch (event.key.keysym.scancode)
-                {
+                switch (event.key.keysym.scancode) {
                 case SDL_SCANCODE_ESCAPE:
                     close_requested = 1;
-                    renderWindow(rend, tex, rs);
                     break;
                 case SDL_SCANCODE_KP_MINUS:
                     if (rs.zoom > 0.5)
