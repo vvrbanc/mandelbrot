@@ -16,12 +16,6 @@ enum rendertargets {
     TARGET_CUDA
 };
 
-struct RenderData {
-    Uint32 *outputBuffer;
-    Uint32 startRow;
-    Uint32 endRow;
-};
-
 struct RenderSettings {
     unsigned int *outputBuffer;
     double width;
@@ -30,15 +24,7 @@ struct RenderSettings {
     double xoffset;
     double yoffset;
     unsigned int iterations;
-};
-
-struct rs2 {
-};
-
-struct ThreadData {
-    struct RenderSettings *renderSettings;
-    Uint32 startRow;
-    Uint32 endRow;
+    long int deviceBuffer;
 };
 
 void mandelbrotCPU(struct RenderSettings rs);
@@ -46,8 +32,6 @@ void mandelbrotAVX(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
 void initCUDA();
 void freeCUDA();
-int renderMandelThread(void *td);
-
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);
 
 #endif
