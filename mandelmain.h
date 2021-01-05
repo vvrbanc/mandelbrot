@@ -6,7 +6,6 @@
 #define INITIAL_WINDOW_HEIGHT (2048)
 
 #include "mandelcpu.h"
-#include "settings.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_stdinc.h>
 #include <immintrin.h>
