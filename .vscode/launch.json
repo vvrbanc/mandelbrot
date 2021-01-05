@@ -25,17 +25,17 @@
             ]
         },
         {
-            "name": "(gdb) Launch mandelbrot.run",
+            "name": "(gdb) Launch mandel (nvcc)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/mandelbrot.run",
+            "program": "${workspaceFolder}/mandel",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "preLaunchTask": "Make mandelbrot.run",
+            "preLaunchTask": "Make cudabuild",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

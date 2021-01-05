@@ -5,10 +5,21 @@
 // int rendertarget = TARGET_AVX;
 int rendertarget = TARGET_CUDA;
 // int rendertarget = TARGET_CPU;
+int mutexstatus;
+SDL_mutex *mutex;
 
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs) {
     void *screenbuf;
     int pitch;
+
+    mutexstatus = SDL_TryLockMutex(mutex);
+
+    if (mutexstatus != 0) {
+        fprintf(stderr, "Couldn't lock mutex\n");
+        return;
+    }
+
+
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
 
     rs.outputBuffer = screenbuf;
@@ -47,36 +58,35 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     SDL_RenderCopy(rend, tex, NULL, NULL);
 
     SDL_RenderPresent(rend);
+    SDL_UnlockMutex(mutex);
 }
 
 int main(int argc, char *argv[]) {
-    SDL_Init(SDL_INIT_VIDEO);
-
-    SDL_Window *win =
-        SDL_CreateWindow("sdltest", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
-                         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
-    SDL_Texture *tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888,
-                                         SDL_TEXTUREACCESS_STREAMING,
-                                         WINDOW_WIDTH, WINDOW_HEIGHT);
 
     struct RenderSettings rs;
-    initCUDA();
-
     rs.zoom = 1.0;
     rs.xoffset = 0;
     rs.yoffset = 0;
     rs.iterations = 50;
-    rs.width = WINDOW_WIDTH;
-    rs.height = WINDOW_HEIGHT;
-    // rs.xoffset = -1.456241426611797;
-    // rs.yoffset = -0.070233196159122;
-    // rs.zoom = 11.390625;
-    // rs.iterations = 50;
+    rs.width = INITIAL_WINDOW_WIDTH;
+    rs.height = INITIAL_WINDOW_HEIGHT;
 
-    // rs.xoffset = -1.484935782949454;
-    // rs.zoom = 16585998.481410;
-    // rs.iterations = 5000;
+    SDL_Init(SDL_INIT_VIDEO);
+
+    SDL_Window *win =
+        SDL_CreateWindow("sdltest", 0, 0, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT,
+                         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_Texture *tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888,
+                                         SDL_TEXTUREACCESS_STREAMING,
+                                         rs.width, rs.height);
+
+    mutex = SDL_CreateMutex();
+
+    initCUDA(rs);
+
+
     int close_requested = 0;
 
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
@@ -91,10 +101,10 @@ int main(int argc, char *argv[]) {
         rs.zoom = 16585998.481410;
         rs.iterations = 5000;
 
-        // rendertarget = TARGET_CPU;
-        // renderWindow(rend, tex, rs);
-        // rendertarget = TARGET_AVX;
-        // renderWindow(rend, tex, rs);
+        rendertarget = TARGET_CPU;
+        renderWindow(rend, tex, rs);
+        rendertarget = TARGET_AVX;
+        renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
     }
 
@@ -102,7 +112,7 @@ int main(int argc, char *argv[]) {
 
     while (!close_requested) {
         SDL_Event event;
-        SDL_PollEvent(&event);
+        SDL_WaitEvent(&event);
         {
             switch (event.type) {
             case SDL_QUIT:
@@ -147,8 +157,10 @@ int main(int argc, char *argv[]) {
                     renderWindow(rend, tex, rs);
                     break;
                 case SDL_SCANCODE_S:
-                    rs.iterations = rs.iterations / 2;
-                    renderWindow(rend, tex, rs);
+                    if (rs.iterations > 1) {
+                        rs.iterations = rs.iterations / 2;
+                        renderWindow(rend, tex, rs);
+                    }
                     break;
                 case SDL_SCANCODE_TAB:
                     if (rendertarget == 2)
@@ -169,9 +181,28 @@ int main(int argc, char *argv[]) {
                 printf("rendertarget: %d\n", rendertarget);
                 printf("\n");
                 break;
-            case 1024:
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+
+                    mutexstatus = SDL_TryLockMutex(mutex);
+
+                    if (mutexstatus == 0) {
+                        SDL_DestroyTexture(tex);
+                        rs.width = event.window.data1;
+                        rs.height = event.window.data2;
+                        tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888,
+                                                SDL_TEXTUREACCESS_STREAMING,
+                                                rs.width, rs.height);
+                        renderWindow(rend, tex, rs);
+
+                        SDL_UnlockMutex(mutex);
+                    } else {
+                        fprintf(stderr, "Couldn't lock mutex in event loop\n");
+                    }
+                }
                 break;
             default:
+                break;
                 // printf("%d\n", event.type);
                 SDL_Delay(16);
             }
@@ -180,5 +211,6 @@ int main(int argc, char *argv[]) {
 
     SDL_DestroyRenderer(rend);
     SDL_DestroyWindow(win);
+    freeCUDA();
     SDL_Quit();
 }

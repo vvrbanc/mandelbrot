@@ -2,6 +2,9 @@
 #ifndef MANDELMAIN_H
 #define MANDELMAIN_H
 
+#define INITIAL_WINDOW_WIDTH (2048)
+#define INITIAL_WINDOW_HEIGHT (2048)
+
 #include "mandelcpu.h"
 #include "settings.h"
 #include <SDL2/SDL.h>
@@ -17,20 +20,20 @@ enum rendertargets {
 };
 
 struct RenderSettings {
-    unsigned int *outputBuffer;
-    double width;
-    double height;
+    uint32_t *outputBuffer;
+    int width;
+    int height;
     double zoom;
     double xoffset;
     double yoffset;
     unsigned int iterations;
-    long int deviceBuffer;
+    uint32_t *deviceBuffer;
 };
 
 void mandelbrotCPU(struct RenderSettings rs);
 void mandelbrotAVX(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
-void initCUDA();
+void initCUDA(struct RenderSettings rs);
 void freeCUDA();
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);
 

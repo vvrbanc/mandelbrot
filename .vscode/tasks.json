@@ -19,10 +19,10 @@
 		},
 		{
 			"type": "cppbuild",
-			"label": "Make mandelbrot.run",
+			"label": "Make cudabuild",
 			"command": "/usr/bin/make",
 			"args": [
-				"rebuildmr"
+				"cudabuild"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

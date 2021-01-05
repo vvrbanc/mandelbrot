@@ -1,20 +1,21 @@
 #include <sys/param.h>
 
-#include "settings.h"
+#include <stdio.h>
+#include <bits/stdint-uintn.h>
 
 struct RenderSettings {
-    unsigned int *outputBuffer;
-    double width;
-    double height;
+    uint32_t *outputBuffer;
+    int width;
+    int height;
     double zoom;
     double xoffset;
     double yoffset;
     unsigned int iterations;
-    long int deviceBuffer;
+    uint32_t *deviceBuffer;
 };
 
-int *deviceBuffer;
-int cudaInitialized = 0;
+uint32_t *deviceBuffer;
+char cudaInitialized = 0;
 
 __global__ void mandelbrotCalc(struct RenderSettings rs) {
     int *deviceBuffer = (int *)rs.deviceBuffer;
@@ -25,27 +26,25 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
     int color;
     int colorbias;
 
-    double x1 = rs.xoffset - 2.0 / rs.zoom;
-    double x2 = rs.xoffset + 2.0 / rs.zoom;
+    double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
+    double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
     double y1 = rs.yoffset + 2.0 / rs.zoom;
-    double y2 = rs.yoffset - 2.0 / rs.zoom;
 
-    double xpitch = (x2 - x1) / WINDOW_WIDTH;
-    double ypitch = (y1 - y2) / WINDOW_HEIGHT;
+    double pixel_pitch = (x2 - x1) / rs.width;
 
     int x, y;
 
-    for (int w = index; w < WINDOW_HEIGHT * WINDOW_WIDTH; w += stride) {
+    for (int w = index; w < rs.height * rs.width; w += stride) {
 
-        y = w / WINDOW_WIDTH;
+        y = w / rs.width;
         if (y > 0) {
-            x = w % WINDOW_WIDTH;
+            x = w % rs.width;
         } else {
             x = w;
         }
 
-        cImag = y1 - ypitch * y;
-        cReal = x1 + xpitch * x;
+        cImag = y1 - pixel_pitch * y;
+        cReal = x1 + pixel_pitch * x;
 
         zReal = cReal;
         zImag = cImag;
@@ -66,14 +65,7 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
                 break;
             }
         }
-        deviceBuffer[y * WINDOW_HEIGHT + x] = color;
-    }
-}
-
-extern "C" void initCUDA() {
-    if (cudaInitialized == 0) {
-        cudaMalloc((void **)&deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
-        cudaInitialized = 1;
+        deviceBuffer[w] = color;
     }
 }
 
@@ -84,11 +76,29 @@ extern "C" void freeCUDA() {
     }
 }
 
+extern "C" void initCUDA(struct RenderSettings rs) {
+    static int width = 0;
+    static int height = 0;
+    if (cudaInitialized == 0) {
+        cudaMalloc((void **)&deviceBuffer, rs.width * rs.height * 4);
+        width = rs.width;
+        height = rs.height;
+        cudaInitialized = 1;
+    }
+    else {
+        if (rs.width != width || rs.height != height){
+            freeCUDA();
+            cudaInitialized = 0;
+            initCUDA(rs);
+        }
+    }
+}
+
 extern "C" void mandelbrotCUDA(struct RenderSettings rs) {
-    initCUDA();
-    unsigned int *screenBuffer = rs.outputBuffer;
-    rs.deviceBuffer = (long int)deviceBuffer;
+    initCUDA(rs);
+    uint32_t *screenBuffer = rs.outputBuffer;
+    rs.deviceBuffer = deviceBuffer;
     mandelbrotCalc<<<1024, 1024>>>(rs);
     cudaDeviceSynchronize();
-    cudaMemcpy(screenBuffer, deviceBuffer, WINDOW_WIDTH * WINDOW_HEIGHT * 4, cudaMemcpyDeviceToHost);
+    cudaMemcpy(screenBuffer, deviceBuffer, rs.width * rs.height * 4, cudaMemcpyDeviceToHost);
 }

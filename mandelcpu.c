@@ -4,28 +4,26 @@
 void mandelbrotCPU(struct RenderSettings rs) {
     Uint32 *dst;
 
-    double x1 = rs.xoffset - 2.0 / rs.zoom;
-    double x2 = rs.xoffset + 2.0 / rs.zoom;
-    double y1 = rs.yoffset + 2.0 / rs.zoom;
-    double y2 = rs.yoffset - 2.0 / rs.zoom;
+    double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
+    double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
+    double y1 = rs.yoffset + 2.0 / rs.zoom ;
 
-    double xpitch = (x2 - x1) / WINDOW_WIDTH;
-    double ypitch = (y1 - y2) / WINDOW_HEIGHT;
+    double pixel_pitch = (x2 - x1) / rs.width;
 
     dst = (Uint32 *)((Uint8 *)rs.outputBuffer);
 
-    int c = 0;
+    Uint32 c = 0;
     #pragma omp parallel for schedule(dynamic)
-    for (int y = 0; y < WINDOW_HEIGHT; y++) {
+    for (int y = 0; y < rs.height; y++) {
         double cReal, cImag, zReal, zImag, z2Real, z2Imag, zrzi;
         Uint32 color;
         Uint32 colorbias;
 
-        for (int x = 0; x < WINDOW_WIDTH; x++) {
+        for (int x = 0; x < rs.width; x++) {
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
 
-            cReal = x1 + xpitch * x;
-            cImag = y1 - ypitch * y;
+            cReal = x1 + pixel_pitch * x;
+            cImag = y1 - pixel_pitch * y;
 
             zReal = cReal;
             zImag = cImag;
@@ -49,26 +47,25 @@ void mandelbrotCPU(struct RenderSettings rs) {
                     break;
                 }
             }
-            Uint32 *dst2 = (Uint32 *)((Uint8 *)dst + x * 4 + y * WINDOW_WIDTH * 4);
+            Uint32 *dst2 = (Uint32 *)((Uint8 *)dst + x * 4 + y * rs.width * 4);
             *dst2 = color;
         }
     }
-    printf("total iterations: %d\n", c);
+    printf("total iterations: %u\n", c);
 };
 
 void mandelbrotAVX(struct RenderSettings rs) {
 
     Uint32 *dst;
 
-    double x1 = rs.xoffset - 2.0 / rs.zoom;
-    double x2 = rs.xoffset + 2.0 / rs.zoom;
+    double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
+    double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
     double y1 = rs.yoffset + 2.0 / rs.zoom;
-    double y2 = rs.yoffset - 2.0 / rs.zoom;
 
-    double xpitch = (x2 - x1) / WINDOW_WIDTH;
-    double ypitch = (y1 - y2) / WINDOW_HEIGHT;
+    double pixel_pitch = (x2 - x1) / rs.width;
 
-    __m256d vxpitch = _mm256_set1_pd(xpitch);
+
+    __m256d vxpitch = _mm256_set1_pd(pixel_pitch);
     __m256d vx1 = _mm256_set1_pd(x1);
     __m256d vOne = _mm256_set1_pd(1);
     __m256d vFour = _mm256_set1_pd(4);
@@ -78,11 +75,11 @@ void mandelbrotAVX(struct RenderSettings rs) {
     int c = 0;
 
     #pragma omp parallel for schedule(dynamic)
-    for (int y = 0; y < WINDOW_HEIGHT; y++) {
+    for (int y = 0; y < rs.height; y++) {
         __m256d vzrzi;
-        __m256d vcImag = _mm256_set1_pd(y1 - ypitch * y);
+        __m256d vcImag = _mm256_set1_pd(y1 - pixel_pitch * y);
 
-        for (int x = 0; x < WINDOW_WIDTH; x += 4) {
+        for (int x = 0; x < rs.width - 4 ; x += 4) {
 
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
 
@@ -120,7 +117,7 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
             __m128i pixels = _mm256_cvtpd_epi32(vIter);
 
-            unsigned int *dst2 = (unsigned int *)((Uint8 *)dst + x * 4 + y * WINDOW_WIDTH * 4);
+            unsigned int *dst2 = (unsigned int *)((Uint8 *)dst + x * 4 + y * rs.width * 4);
 
             unsigned int x[4];
             x[0] = _mm_extract_epi32(pixels, 0);
@@ -128,19 +125,19 @@ void mandelbrotAVX(struct RenderSettings rs) {
             x[2] = _mm_extract_epi32(pixels, 2);
             x[3] = _mm_extract_epi32(pixels, 3);
 
-            unsigned int y;
+            unsigned int k;
             for (int j = 0; j < 4; j++) {
-                y = x[j];
-                if (y == rs.iterations) {
-                    y = 0xFF000000;
+                k = x[j];
+                if (k == rs.iterations) {
+                    k = 0xFF000000;
                 } else {
-                    y = MIN(255, y * 510.0 / rs.iterations);
-                    y = (0xFF000000 | (y << 16) | (y << 8) | y);
+                    k = MIN(255, k * 510.0 / rs.iterations);
+                    k = (0xFF000000 | (k << 16) | (k << 8) | k);
                 }
 
-                dst2[j] = y;
+                dst2[j] = k;
             }
         }
     }
-    printf("total iterations: %d\n", c);
+    printf("total iterations: %u\n", c);
 };

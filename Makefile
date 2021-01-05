@@ -1,6 +1,6 @@
 CFLAGS := `sdl2-config --libs --cflags` --std=c11 -Wall -lSDL2_image -lm -march=native -mtune=native -pipe -Wall -fopenmp
 # CFLAGS := $(CFLAGS) -ggdb3 -O0
-CFLAGS := $(CFLAGS) -O3 -ffast-math -fomit-frame-pointer -fno-finite-math-only -flto
+CFLAGS := $(CFLAGS) -Ofast --fast-math -fomit-frame-pointer -fno-finite-math-only -flto
 
 
 all: mandel
