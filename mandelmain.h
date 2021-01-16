@@ -5,12 +5,18 @@
 #define INITIAL_WINDOW_WIDTH (2048)
 #define INITIAL_WINDOW_HEIGHT (2048)
 
+#define MAX_SHADER_SIZE 100000
+
 #include "mandelcpu.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_stdinc.h>
 #include <immintrin.h>
 #include <stdio.h>
 #include <sys/param.h>
+
+#include <GL/glew.h>
+
+
 
 enum rendertargets {
     TARGET_CPU,

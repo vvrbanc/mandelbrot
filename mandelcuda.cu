@@ -1,7 +1,7 @@
 #include <sys/param.h>
 
-#include <stdio.h>
 #include <bits/stdint-uintn.h>
+#include <stdio.h>
 
 struct RenderSettings {
     uint32_t *outputBuffer;
@@ -49,7 +49,7 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
         zReal = cReal;
         zImag = cImag;
 
-        color = 0; // black as default for values that converge to 0
+        color = 0x000000FF; // black as default for values that converge to 0
 
         for (int i = 0; i < rs.iterations; i++) {
             z2Real = zReal * zReal;
@@ -61,7 +61,7 @@ __global__ void mandelbrotCalc(struct RenderSettings rs) {
 
             if (z2Real + z2Imag > 4.0f) {
                 colorbias = MIN(255, i * 510.0 / rs.iterations);
-                color = (0xFF000000 | (colorbias << 16) | (colorbias << 8) | colorbias);
+                color = (color | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                 break;
             }
         }
@@ -77,6 +77,9 @@ extern "C" void freeCUDA() {
 }
 
 extern "C" void initCUDA(struct RenderSettings rs) {
+    // allocates device buffer on first run
+    // destroys and re-allocates buffer if window dimensions change
+
     static int width = 0;
     static int height = 0;
     if (cudaInitialized == 0) {
@@ -84,9 +87,8 @@ extern "C" void initCUDA(struct RenderSettings rs) {
         width = rs.width;
         height = rs.height;
         cudaInitialized = 1;
-    }
-    else {
-        if (rs.width != width || rs.height != height){
+    } else {
+        if (rs.width != width || rs.height != height) {
             freeCUDA();
             cudaInitialized = 0;
             initCUDA(rs);

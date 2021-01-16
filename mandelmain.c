@@ -2,15 +2,23 @@
 #include <complex.h>
 #include <time.h>
 
-// int rendertarget = TARGET_AVX;
-int rendertarget = TARGET_CUDA;
+int rendertarget = TARGET_AVX;
+// int rendertarget = TARGET_CUDA;
 // int rendertarget = TARGET_CPU;
-int mutexstatus;
+
+SDL_Window *win;
+SDL_Renderer *rend;
+SDL_Texture *tex;
 SDL_mutex *mutex;
+int mutexstatus;
+int close_requested = 0;
+
+struct RenderSettings rs;
 
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs) {
-    void *screenbuf;
     int pitch;
+
+    void *screenbuf;
 
     mutexstatus = SDL_TryLockMutex(mutex);
 
@@ -18,7 +26,6 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         fprintf(stderr, "Couldn't lock mutex\n");
         return;
     }
-
 
     SDL_LockTexture(tex, NULL, &screenbuf, &pitch);
 
@@ -61,9 +68,224 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     SDL_UnlockMutex(mutex);
 }
 
+void setupSDL() {
+    SDL_Init(SDL_INIT_VIDEO);
+
+    win = SDL_CreateWindow("sdltest", 0, 0, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT,
+                           SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+
+    tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING,
+                            rs.width, rs.height);
+    mutex = SDL_CreateMutex();
+}
+
+// clang-format off
+float vertices[] = {
+    // positions          // colors           // texture coords
+     0.8f,  0.8f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f, // top right
+     0.8f, -0.8f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 1.0f, // bottom right
+    -0.8f, -0.8f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // bottom left
+    -0.8f,  0.8f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 0.0f  // top left 
+};
+unsigned int indices[] = {
+    0, 1, 3, // first triangle
+    1, 2, 3  // second triangle
+};
+// clang-format on
+
+void handleEvent(SDL_Event event) {
+    switch (event.type) {
+    case SDL_QUIT:
+        close_requested = 1;
+        break;
+    case SDL_KEYDOWN:
+        switch (event.key.keysym.scancode) {
+        case SDL_SCANCODE_ESCAPE:
+            close_requested = 1;
+            break;
+        case SDL_SCANCODE_KP_MINUS:
+            if (rs.zoom > 0.5)
+                rs.zoom = rs.zoom / 1.5;
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_KP_DIVIDE:
+            rs.zoom = 1.0;
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_KP_PLUS:
+            rs.zoom = rs.zoom * 1.5;
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_RIGHT:
+            rs.xoffset += (0.2 / rs.zoom);
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_LEFT:
+            rs.xoffset -= (0.2 / rs.zoom);
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_UP:
+            rs.yoffset += (0.2 / rs.zoom);
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_DOWN:
+            rs.yoffset -= (0.2 / rs.zoom);
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_G:
+            SDL_Delay(1);
+            SDL_GLContext glcontext = SDL_GL_CreateContext(win);
+
+            GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+            GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+            FILE *fp;
+            char buff[MAX_SHADER_SIZE];
+            fp = fopen("shader.fs", "r");
+            size_t count = fread(buff, 1, MAX_SHADER_SIZE, (FILE *)fp);
+            buff[count] = '\0';
+            fclose(fp);
+
+            const char *shaderSource = buff;
+            glShaderSource(fragmentShader, 1, &shaderSource, NULL);
+
+            fp = fopen("shader.vs", "r");
+            count = fread(buff, 1, MAX_SHADER_SIZE, (FILE *)fp);
+            buff[count] = '\0';
+            fclose(fp);
+            glShaderSource(vertexShader, 1, &shaderSource, NULL);
+
+            glCompileShader(vertexShader);
+            glCompileShader(fragmentShader);
+
+            GLuint shaderProgram = glCreateProgram();
+            glAttachShader(shaderProgram, vertexShader);
+            glAttachShader(shaderProgram, fragmentShader);
+            glLinkProgram(shaderProgram);
+            glDeleteShader(vertexShader);
+            glDeleteShader(fragmentShader);
+
+            GLuint VBO, VAO, EBO;
+            glGenVertexArrays(1, &VAO);
+            glGenBuffers(1, &VBO);
+            glGenBuffers(1, &EBO);
+
+            glBindVertexArray(VAO);
+
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+            // position
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+            glEnableVertexAttribArray(0);
+            // color
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+            glEnableVertexAttribArray(1);
+            // texture
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+            glEnableVertexAttribArray(2);
+
+            GLuint texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            void *data;
+            data = (unsigned *)malloc(rs.width * rs.height * 4);
+
+            rs.outputBuffer = data;
+
+            mandelbrotAVX(rs);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rs.width, rs.height, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, data);
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            glBindTexture(GL_TEXTURE_2D, texture);
+
+            glUseProgram(shaderProgram);
+            glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+
+            // render start
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+            SDL_GL_SwapWindow(win);
+            SDL_Delay(1000);
+
+            glDeleteVertexArrays(1, &VAO);
+            glDeleteBuffers(1, &VBO);
+            glDeleteBuffers(1, &EBO);
+            glDeleteProgram(shaderProgram);
+
+            SDL_GL_DeleteContext(glcontext);
+            free(data);
+            break;
+        case SDL_SCANCODE_W:
+            rs.iterations = rs.iterations * 2;
+            renderWindow(rend, tex, rs);
+            break;
+        case SDL_SCANCODE_S:
+            if (rs.iterations > 1) {
+                rs.iterations = rs.iterations / 2;
+                renderWindow(rend, tex, rs);
+            }
+            break;
+        case SDL_SCANCODE_TAB:
+            if (rendertarget == 2)
+                rendertarget = 0;
+            else
+                rendertarget++;
+
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
+        default:
+            break;
+        }
+        printf("Xoffset: %.15f\n", rs.xoffset);
+        printf("Yoffset: %.15f\n", rs.yoffset);
+        printf("Zoom: %f\n", rs.zoom);
+        printf("Iter: %d\n", rs.iterations);
+        printf("rendertarget: %d\n", rendertarget);
+        printf("\n");
+        break;
+    case SDL_WINDOWEVENT:
+        if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+
+            mutexstatus = SDL_TryLockMutex(mutex);
+
+            if (mutexstatus == 0) {
+                SDL_DestroyTexture(tex);
+                rs.width = event.window.data1;
+                rs.height = event.window.data2;
+                tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_RGBA8888,
+                                        SDL_TEXTUREACCESS_STREAMING,
+                                        rs.width, rs.height);
+                renderWindow(rend, tex, rs);
+
+                SDL_UnlockMutex(mutex);
+            } else {
+                fprintf(stderr, "Couldn't lock mutex in event loop\n");
+            }
+        }
+        break;
+    default:
+        break;
+        printf("%d\n", event.type);
+    }
+}
+
 int main(int argc, char *argv[]) {
 
-    struct RenderSettings rs;
     rs.zoom = 1.0;
     rs.xoffset = 0;
     rs.yoffset = 0;
@@ -71,35 +293,30 @@ int main(int argc, char *argv[]) {
     rs.width = INITIAL_WINDOW_WIDTH;
     rs.height = INITIAL_WINDOW_HEIGHT;
 
-    SDL_Init(SDL_INIT_VIDEO);
-
-    SDL_Window *win =
-        SDL_CreateWindow("sdltest", 0, 0, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT,
-                         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
-
-    SDL_Texture *tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888,
-                                         SDL_TEXTUREACCESS_STREAMING,
-                                         rs.width, rs.height);
-
-    mutex = SDL_CreateMutex();
-
+    setupSDL();
     initCUDA(rs);
 
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+        /* Problem: glewInit failed, something is seriously wrong. */
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+    }
+    fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    int close_requested = 0;
+    // rs.xoffset = -1.483321409799798;
+    // rs.zoom = 16100687809804.728516;
+    // rs.iterations = 12800;
 
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;
 
-        // rs.xoffset = -1.456241426611797;
-        // rs.yoffset = -0.070233196159122;
-        // rs.zoom = 11.390625;
-        // rs.iterations = 50;
-
         rs.xoffset = -1.484935782949454;
         rs.zoom = 16585998.481410;
         rs.iterations = 5000;
+
+        // rs.xoffset = -1.483321409799798;
+        // rs.zoom = 16100687809804.728516;
+        // rs.iterations = 25600;
 
         rendertarget = TARGET_CPU;
         renderWindow(rend, tex, rs);
@@ -113,100 +330,7 @@ int main(int argc, char *argv[]) {
     while (!close_requested) {
         SDL_Event event;
         SDL_WaitEvent(&event);
-        {
-            switch (event.type) {
-            case SDL_QUIT:
-                close_requested = 1;
-                break;
-            case SDL_KEYDOWN:
-                switch (event.key.keysym.scancode) {
-                case SDL_SCANCODE_ESCAPE:
-                    close_requested = 1;
-                    break;
-                case SDL_SCANCODE_KP_MINUS:
-                    if (rs.zoom > 0.5)
-                        rs.zoom = rs.zoom / 1.5;
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_KP_DIVIDE:
-                    rs.zoom = 1.0;
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_KP_PLUS:
-                    rs.zoom = rs.zoom * 1.5;
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_RIGHT:
-                    rs.xoffset += (0.2 / rs.zoom);
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_LEFT:
-                    rs.xoffset -= (0.2 / rs.zoom);
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_UP:
-                    rs.yoffset += (0.2 / rs.zoom);
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_DOWN:
-                    rs.yoffset -= (0.2 / rs.zoom);
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_W:
-                    rs.iterations = rs.iterations * 2;
-                    renderWindow(rend, tex, rs);
-                    break;
-                case SDL_SCANCODE_S:
-                    if (rs.iterations > 1) {
-                        rs.iterations = rs.iterations / 2;
-                        renderWindow(rend, tex, rs);
-                    }
-                    break;
-                case SDL_SCANCODE_TAB:
-                    if (rendertarget == 2)
-                        rendertarget = 0;
-                    else
-                        rendertarget++;
-
-                    renderWindow(rend, tex, rs);
-                    SDL_Delay(100);
-                    break;
-                default:
-                    break;
-                }
-                printf("Xoffset: %.15f\n", rs.xoffset);
-                printf("Yoffset: %.15f\n", rs.yoffset);
-                printf("Zoom: %f\n", rs.zoom);
-                printf("Iter: %d\n", rs.iterations);
-                printf("rendertarget: %d\n", rendertarget);
-                printf("\n");
-                break;
-            case SDL_WINDOWEVENT:
-                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-
-                    mutexstatus = SDL_TryLockMutex(mutex);
-
-                    if (mutexstatus == 0) {
-                        SDL_DestroyTexture(tex);
-                        rs.width = event.window.data1;
-                        rs.height = event.window.data2;
-                        tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_ARGB8888,
-                                                SDL_TEXTUREACCESS_STREAMING,
-                                                rs.width, rs.height);
-                        renderWindow(rend, tex, rs);
-
-                        SDL_UnlockMutex(mutex);
-                    } else {
-                        fprintf(stderr, "Couldn't lock mutex in event loop\n");
-                    }
-                }
-                break;
-            default:
-                break;
-                // printf("%d\n", event.type);
-                SDL_Delay(16);
-            }
-        }
+        handleEvent(event);
     }
 
     SDL_DestroyRenderer(rend);

@@ -2,18 +2,14 @@
 #include "mandelmain.h"
 
 void mandelbrotCPU(struct RenderSettings rs) {
-    Uint32 *dst;
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
     double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
-    double y1 = rs.yoffset + 2.0 / rs.zoom ;
+    double y1 = rs.yoffset + 2.0 / rs.zoom;
 
     double pixel_pitch = (x2 - x1) / rs.width;
 
-    dst = (Uint32 *)((Uint8 *)rs.outputBuffer);
-
-    Uint32 c = 0;
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (int y = 0; y < rs.height; y++) {
         double cReal, cImag, zReal, zImag, z2Real, z2Imag, zrzi;
         Uint32 color;
@@ -41,22 +37,16 @@ void mandelbrotCPU(struct RenderSettings rs) {
 
                 if (z2Real + z2Imag > 4.0f) {
                     colorbias = MIN(255, i * 510.0 / rs.iterations);
-                    color = (0xFF000000 | (colorbias << 16) | (colorbias << 8) | colorbias);
-                    #pragma omp atomic
-                    c += i;
+                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                     break;
                 }
             }
-            Uint32 *dst2 = (Uint32 *)((Uint8 *)dst + x * 4 + y * rs.width * 4);
-            *dst2 = color;
+            rs.outputBuffer[x + y * rs.width] = color;
         }
     }
-    printf("total iterations: %u\n", c);
 };
 
 void mandelbrotAVX(struct RenderSettings rs) {
-
-    Uint32 *dst;
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
     double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
@@ -64,22 +54,17 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
     double pixel_pitch = (x2 - x1) / rs.width;
 
-
     __m256d vxpitch = _mm256_set1_pd(pixel_pitch);
     __m256d vx1 = _mm256_set1_pd(x1);
     __m256d vOne = _mm256_set1_pd(1);
     __m256d vFour = _mm256_set1_pd(4);
 
-    dst = (Uint32 *)((Uint8 *)rs.outputBuffer);
-
-    int c = 0;
-
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (int y = 0; y < rs.height; y++) {
         __m256d vzrzi;
         __m256d vcImag = _mm256_set1_pd(y1 - pixel_pitch * y);
 
-        for (int x = 0; x < rs.width - 4 ; x += 4) {
+        for (int x = 0; x < rs.width - (rs.width % 4); x += 4) {
 
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
 
@@ -109,35 +94,26 @@ void mandelbrotAVX(struct RenderSettings rs) {
                 vIter = _mm256_add_pd(_mm256_and_pd(mask, vOne), vIter);
 
                 if (_mm256_testz_pd(mask, _mm256_set1_pd(-1))) {
-                    #pragma omp atomic
-                    c += i;
                     break;
                 }
             }
 
-            __m128i pixels = _mm256_cvtpd_epi32(vIter);
+            // convert 4x double vector (256) to 4x uint32_t (128) and copy to ram as uint32 [4]
+            Uint32 iters[4];
+            _mm_store_si128((__m128i *) iters, _mm256_cvtpd_epi32(vIter));
 
-            unsigned int *dst2 = (unsigned int *)((Uint8 *)dst + x * 4 + y * rs.width * 4);
+            Uint32 color, colorbias;
 
-            unsigned int x[4];
-            x[0] = _mm_extract_epi32(pixels, 0);
-            x[1] = _mm_extract_epi32(pixels, 1);
-            x[2] = _mm_extract_epi32(pixels, 2);
-            x[3] = _mm_extract_epi32(pixels, 3);
-
-            unsigned int k;
-            for (int j = 0; j < 4; j++) {
-                k = x[j];
-                if (k == rs.iterations) {
-                    k = 0xFF000000;
+            // calculate color for the 4 dumped pixels
+            for (int ii = 0; ii < 4; ii++) {
+                if (iters[ii] == rs.iterations) {
+                    color = 0x000000FF;
                 } else {
-                    k = MIN(255, k * 510.0 / rs.iterations);
-                    k = (0xFF000000 | (k << 16) | (k << 8) | k);
+                    colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
+                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                 }
-
-                dst2[j] = k;
+                rs.outputBuffer[x + y * rs.width + ii] = color;
             }
         }
     }
-    printf("total iterations: %u\n", c);
 };
