@@ -10,18 +10,21 @@
 #include "mandelcpu.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_stdinc.h>
+#include <cglm/cglm.h>
 #include <immintrin.h>
 #include <stdio.h>
 #include <sys/param.h>
 
 #include <GL/glew.h>
 
-
+#include <gmp.h>
 
 enum rendertargets {
     TARGET_CPU,
     TARGET_AVX,
-    TARGET_CUDA
+    TARGET_CUDA,
+    TARGET_GMP,
+    TARGET_END
 };
 
 struct RenderSettings {
@@ -37,6 +40,7 @@ struct RenderSettings {
 
 void mandelbrotCPU(struct RenderSettings rs);
 void mandelbrotAVX(struct RenderSettings rs);
+void mandelbrotGMP(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
 void initCUDA(struct RenderSettings rs);
 void freeCUDA();

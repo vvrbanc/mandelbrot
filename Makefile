@@ -1,7 +1,7 @@
 CFLAGS := --std=c11 -Wall -march=native -mtune=native -pipe -Wall -fopenmp
 CFLAGS  := $(CFLAGS) `sdl2-config --cflags`
 LDFLAGS := `sdl2-config --libs` -lSDL2_image -lm
-LDFLAGS := $(LDFLAGS) -L/opt/cuda/targets/x86_64-linux/lib -lcudadevrt -lcudart -lGL -lGLEW
+LDFLAGS := $(LDFLAGS) -L/opt/cuda/targets/x86_64-linux/lib -lcudadevrt -lcudart -lGL -lGLEW -lgmp
 
 # CFLAGS := $(CFLAGS) -ggdb3 -O0
 CFLAGS := $(CFLAGS) -Ofast -ffast-math -fomit-frame-pointer -fno-finite-math-only -flto

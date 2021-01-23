@@ -1,10 +1,10 @@
 #include "mandelmain.h"
-#include <complex.h>
 #include <time.h>
 
-int rendertarget = TARGET_AVX;
+int rendertarget = TARGET_CPU;
+// int rendertarget = TARGET_AVX;
+// int rendertarget = TARGET_GMP;
 // int rendertarget = TARGET_CUDA;
-// int rendertarget = TARGET_CPU;
 
 SDL_Window *win;
 SDL_Renderer *rend;
@@ -44,6 +44,9 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     case TARGET_AVX:
         mandelbrotAVX(rs);
         break;
+    case TARGET_GMP:
+        mandelbrotGMP(rs);
+        break;
     case TARGET_CPU:
         mandelbrotCPU(rs);
         break;
@@ -82,11 +85,11 @@ void setupSDL() {
 
 // clang-format off
 float vertices[] = {
-    // positions          // colors           // texture coords
-     0.8f,  0.8f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f, // top right
-     0.8f, -0.8f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 1.0f, // bottom right
-    -0.8f, -0.8f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // bottom left
-    -0.8f,  0.8f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 0.0f  // top left 
+    // positions         // texture coords
+     1.0f,  1.0f, 0.0f,  1.0f, 0.0f, // top right
+     1.0f, -1.0f, 0.0f,  1.0f, 1.0f, // bottom right
+    -1.0f, -1.0f, 0.0f,  0.0f, 1.0f, // bottom left
+    -1.0f,  1.0f, 0.0f,  0.0f, 0.0f  // top left
 };
 unsigned int indices[] = {
     0, 1, 3, // first triangle
@@ -180,14 +183,11 @@ void handleEvent(SDL_Event event) {
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
             // position
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
             glEnableVertexAttribArray(0);
-            // color
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-            glEnableVertexAttribArray(1);
             // texture
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+            glEnableVertexAttribArray(1);
 
             GLuint texture;
             glGenTextures(1, &texture);
@@ -196,6 +196,9 @@ void handleEvent(SDL_Event event) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            rs.width = 16384;
+            rs.height = 16384;
 
             void *data;
             data = (unsigned *)malloc(rs.width * rs.height * 4);
@@ -211,14 +214,29 @@ void handleEvent(SDL_Event event) {
             glUseProgram(shaderProgram);
             glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
 
-            // render start
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
+            mat4 transform = GLM_MAT4_IDENTITY_INIT;
 
+            for (int i = 0; i < 1000; i++) {
 
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
-            SDL_GL_SwapWindow(win);
+                // glm_scale(transform, (vec3) {1.01f, 1.01f, 1.01f});
+                glm_rotate(transform, 0.003f, (vec3){0.0f, 0.0f, 1.0f});
+                glm_rotate(transform, 0.005f, (vec3){0.0f, 1.0f, 0.0f});
+                glm_rotate(transform, 0.007f, (vec3){1.0f, 0.0f, 0.0f});
+
+                unsigned int transformLoc = glGetUniformLocation(shaderProgram, "transform");
+                glUniformMatrix4fv(transformLoc, 1, GL_FALSE, (float *)transform);
+
+                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT);
+
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+                SDL_GL_SwapWindow(win);
+                SDL_Delay(16);
+            }
+
             SDL_Delay(1000);
 
             glDeleteVertexArrays(1, &VAO);
@@ -240,11 +258,9 @@ void handleEvent(SDL_Event event) {
             }
             break;
         case SDL_SCANCODE_TAB:
-            if (rendertarget == 2)
+            rendertarget++;
+            if (rendertarget == TARGET_END)
                 rendertarget = 0;
-            else
-                rendertarget++;
-
             renderWindow(rend, tex, rs);
             SDL_Delay(100);
             break;
@@ -259,6 +275,7 @@ void handleEvent(SDL_Event event) {
         printf("\n");
         break;
     case SDL_WINDOWEVENT:
+        // printf("%d\n", event.window.event);
         if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 
             mutexstatus = SDL_TryLockMutex(mutex);
@@ -305,23 +322,29 @@ int main(int argc, char *argv[]) {
 
     // rs.xoffset = -1.483321409799798;
     // rs.zoom = 16100687809804.728516;
-    // rs.iterations = 12800;
+    // rs.iterations = 25000;
 
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;
 
-        rs.xoffset = -1.484935782949454;
-        rs.zoom = 16585998.481410;
-        rs.iterations = 5000;
+        // rs.xoffset = -1.484935782949454;
+        // rs.zoom = 16585998.481410;
+        // rs.iterations = 5000;
 
-        // rs.xoffset = -1.483321409799798;
-        // rs.zoom = 16100687809804.728516;
-        // rs.iterations = 25600;
+        // rs.xoffset = -1.478036884621246;
+        // rs.zoom = 194.619507;
+        // rs.iterations = 500;
+
+        rs.xoffset = -1.483321409799798;
+        rs.zoom = 16100687809804.728516;
+        rs.iterations = 25600;
 
         rendertarget = TARGET_CPU;
         renderWindow(rend, tex, rs);
         rendertarget = TARGET_AVX;
         renderWindow(rend, tex, rs);
+        // rendertarget = TARGET_GMP;
+        // renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
     }
 
