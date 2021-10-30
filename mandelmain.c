@@ -113,6 +113,7 @@ void handleEvent(SDL_Event event) {
             close_requested = 1;
             break;
         case SDL_SCANCODE_KP_MINUS:
+        case SDL_SCANCODE_MINUS:
             if (rs.zoom > 0.5)
                 rs.zoom = rs.zoom / 1.5;
             renderWindow(rend, tex, rs);
@@ -122,6 +123,7 @@ void handleEvent(SDL_Event event) {
             renderWindow(rend, tex, rs);
             break;
         case SDL_SCANCODE_KP_PLUS:
+        case SDL_SCANCODE_EQUALS:
             rs.zoom = rs.zoom * 1.5;
             renderWindow(rend, tex, rs);
             break;
