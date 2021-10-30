@@ -6,7 +6,7 @@
 			"label": "Make mandel",
 			"command": "/usr/bin/make",
 			"args": [
-				"rebuild"
+				"mandelbrot"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
