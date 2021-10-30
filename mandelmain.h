@@ -22,6 +22,7 @@
 enum rendertargets {
     TARGET_CPU,
     TARGET_AVX,
+    TARGET_CUDASP,
     TARGET_CUDA,
     TARGET_GMP
 };
@@ -41,6 +42,7 @@ void mandelbrotCPU(struct RenderSettings rs);
 void mandelbrotAVX(struct RenderSettings rs);
 void mandelbrotGMP(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
+void mandelbrotCUDAsp(struct RenderSettings rs);
 void initCUDA(struct RenderSettings rs);
 void freeCUDA();
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);

@@ -36,8 +36,12 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
 
     switch (rendertarget) {
     case TARGET_CUDA:
-        printf("Renderer: CUDA\n");
+        printf("Renderer: CUDA double precision\n");
         mandelbrotCUDA(rs);
+        break;
+    case TARGET_CUDASP:
+        printf("Renderer: CUDA single precision\n");
+        mandelbrotCUDAsp(rs);
         break;
     case TARGET_AVX:
         printf("Renderer: AVX\n");
@@ -278,6 +282,11 @@ void handleEvent(SDL_Event event) {
             renderWindow(rend, tex, rs);
             SDL_Delay(100);
             break;
+        case SDL_SCANCODE_5:
+            rendertarget = 4;
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
         default:
             break;
         }
@@ -352,6 +361,8 @@ int main(int argc, char *argv[]) {
         rendertarget = TARGET_CPU;
         renderWindow(rend, tex, rs);
         rendertarget = TARGET_AVX;
+        renderWindow(rend, tex, rs);
+        rendertarget = TARGET_CUDASP;
         renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
     }
