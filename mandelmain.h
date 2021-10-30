@@ -23,8 +23,7 @@ enum rendertargets {
     TARGET_CPU,
     TARGET_AVX,
     TARGET_CUDA,
-    TARGET_GMP,
-    TARGET_END
+    TARGET_GMP
 };
 
 struct RenderSettings {

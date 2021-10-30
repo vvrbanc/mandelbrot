@@ -1,10 +1,7 @@
 #include "mandelmain.h"
 #include <time.h>
 
-int rendertarget = TARGET_CPU;
-// int rendertarget = TARGET_AVX;
-// int rendertarget = TARGET_GMP;
-// int rendertarget = TARGET_CUDA;
+int rendertarget = TARGET_AVX;
 
 SDL_Window *win;
 SDL_Renderer *rend;
@@ -39,15 +36,19 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
 
     switch (rendertarget) {
     case TARGET_CUDA:
+        printf("Renderer: CUDA\n");
         mandelbrotCUDA(rs);
         break;
     case TARGET_AVX:
+        printf("Renderer: AVX\n");
         mandelbrotAVX(rs);
         break;
     case TARGET_GMP:
+        printf("Renderer: GMP\n");
         mandelbrotGMP(rs);
         break;
     case TARGET_CPU:
+        printf("Renderer: CPU\n");
         mandelbrotCPU(rs);
         break;
     default:
@@ -257,10 +258,23 @@ void handleEvent(SDL_Event event) {
                 renderWindow(rend, tex, rs);
             }
             break;
-        case SDL_SCANCODE_TAB:
-            rendertarget++;
-            if (rendertarget == TARGET_END)
-                rendertarget = 0;
+        case SDL_SCANCODE_1:
+            rendertarget = 0;
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
+        case SDL_SCANCODE_2:
+            rendertarget = 1;
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
+        case SDL_SCANCODE_3:
+            rendertarget = 2;
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
+        case SDL_SCANCODE_4:
+            rendertarget = 3;
             renderWindow(rend, tex, rs);
             SDL_Delay(100);
             break;
@@ -271,7 +285,6 @@ void handleEvent(SDL_Event event) {
         printf("Yoffset: %.15f\n", rs.yoffset);
         printf("Zoom: %f\n", rs.zoom);
         printf("Iter: %d\n", rs.iterations);
-        printf("rendertarget: %d\n", rendertarget);
         printf("\n");
         break;
     case SDL_WINDOWEVENT:
@@ -320,31 +333,26 @@ int main(int argc, char *argv[]) {
     }
     fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    // rs.xoffset = -1.483321409799798;
-    // rs.zoom = 16100687809804.728516;
-    // rs.iterations = 25000;
-
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;
 
-        // rs.xoffset = -1.484935782949454;
-        // rs.zoom = 16585998.481410;
-        // rs.iterations = 5000;
+        // arbitrarily chosen zoom point for benchmarking
+        rs.xoffset = -1.484935782949454;
+        rs.zoom = 16585998.481410;
+        rs.iterations = 5000;
 
         // rs.xoffset = -1.478036884621246;
         // rs.zoom = 194.619507;
         // rs.iterations = 500;
 
-        rs.xoffset = -1.483321409799798;
-        rs.zoom = 16100687809804.728516;
-        rs.iterations = 25600;
+        // rs.xoffset = -1.483321409799798;
+        // rs.zoom = 16100687809804.728516;
+        // rs.iterations = 25600;
 
         rendertarget = TARGET_CPU;
         renderWindow(rend, tex, rs);
         rendertarget = TARGET_AVX;
         renderWindow(rend, tex, rs);
-        // rendertarget = TARGET_GMP;
-        // renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
     }
 
