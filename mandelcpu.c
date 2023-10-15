@@ -27,7 +27,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
             color = 0; // black as default for values that converge to 0
 
             // Mandelbrot calc for current (x,y) pixel
-            for (int i = 0; i < rs.iterations; i++) {
+            for (uint i = 0; i < rs.iterations; i++) {
                 z2Real = zReal * zReal;
                 z2Imag = zImag * zImag;
                 zrzi = zReal * zImag;
@@ -44,7 +44,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
             rs.outputBuffer[x + y * rs.width] = color;
         }
     }
-};
+}
 
 void mandelbrotAVX(struct RenderSettings rs) {
 
@@ -80,7 +80,7 @@ void mandelbrotAVX(struct RenderSettings rs) {
             __m256d vIter = _mm256_set1_pd(0);
 
             // Mandelbrot calc for current (x,y) pixel
-            for (int i = 0; i < rs.iterations; i++) {
+            for (uint i = 0; i < rs.iterations; i++) {
 
                 vz2Real = _mm256_mul_pd(vzReal, vzReal);
                 vz2Imag = _mm256_mul_pd(vzImag, vzImag);
@@ -116,7 +116,7 @@ void mandelbrotAVX(struct RenderSettings rs) {
             }
         }
     }
-};
+}
 
 void mandelbrotGMP(struct RenderSettings rs) {
 
@@ -165,7 +165,7 @@ void mandelbrotGMP(struct RenderSettings rs) {
             color = 0; // black as default for values that converge to 0
 
             // Mandelbrot calc for current (x,y) pixel
-            for (int i = 0; i < rs.iterations; i++) {
+            for (uint i = 0; i < rs.iterations; i++) {
                 mpf_mul(gz2Real, gzReal, gzReal);
                 mpf_mul(gz2Imag, gzImag, gzImag);
                 mpf_add(gzTmp, gz2Real, gz2Imag);
@@ -187,4 +187,4 @@ void mandelbrotGMP(struct RenderSettings rs) {
         }
         mpf_clears(gcReal, gcImag, gzReal, gzImag, gz2Real, gz2Imag, gzrzi, gzTmp, NULL);
     }
-};
+}
