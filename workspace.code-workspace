@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"files.associations": {
+			"*.asm": "assembly",
 			"hash_map": "c",
 			"array": "c",
 			"deque": "c",
@@ -18,7 +19,8 @@
 			"initializer_list": "c",
 			"regex": "c",
 			"valarray": "c",
-			"cstddef": "c"
+			"cstddef": "c",
+			"cglm.h": "c"
 		}
 	}
 }
