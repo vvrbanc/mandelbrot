@@ -8,6 +8,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
     double y1 = rs.yoffset + 2.0 / rs.zoom;
 
     double pixel_pitch = (x2 - x1) / rs.width;
+    double colorscale = 510.0 / rs.iterations;
 
 #pragma omp parallel for schedule(dynamic)
     for (int y = 0; y < rs.height; y++) {
@@ -20,6 +21,20 @@ void mandelbrotCPU(struct RenderSettings rs) {
 
             cReal = x1 + pixel_pitch * x;
             cImag = y1 - pixel_pitch * y;
+
+            // early-out for points inside the main cardioid:
+            double creal_m14 = cReal - 0.25;
+            double cimag2 = cImag * cImag;
+            double q = creal_m14 * creal_m14 + cimag2;
+            if (q * (q + creal_m14) <= 0.25 * cimag2) {
+                rs.outputBuffer[x + y * rs.width] = 0;
+                continue;
+            }
+            double creal_p1 = cReal + 1.0;
+            if (creal_p1 * creal_p1 + cimag2 <= 0.0625) {
+                rs.outputBuffer[x + y * rs.width] = 0;
+                continue;
+            }
 
             zReal = cReal;
             zImag = cImag;
@@ -36,7 +51,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
                 zImag = zrzi + zrzi + cImag;
 
                 if (z2Real + z2Imag > 4.0f) {
-                    colorbias = MIN(255, i * 510.0 / rs.iterations);
+                    colorbias = MIN(255, i * colorscale);
                     color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                     break;
                 }
