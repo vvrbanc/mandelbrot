@@ -2,8 +2,8 @@
 #ifndef MANDELMAIN_H
 #define MANDELMAIN_H
 
-#define INITIAL_WINDOW_WIDTH (1024)
-#define INITIAL_WINDOW_HEIGHT (1024)
+#define INITIAL_WINDOW_WIDTH (2048)
+#define INITIAL_WINDOW_HEIGHT (2048)
 
 #define MAX_SHADER_SIZE 100000
 
@@ -13,6 +13,9 @@
 #include <cglm/cglm.h>
 #ifdef __x86_64__
 #include <immintrin.h>
+#endif
+#ifdef __aarch64__
+#include <arm_neon.h>
 #endif
 #include <stdio.h>
 #include <sys/param.h>
@@ -24,6 +27,7 @@
 enum rendertargets {
     TARGET_CPU,
     TARGET_AVX,
+    TARGET_NEON,
     TARGET_CUDASP,
     TARGET_CUDA,
     TARGET_GMP
@@ -43,6 +47,7 @@ struct RenderSettings {
 
 void mandelbrotCPU(struct RenderSettings rs);
 void mandelbrotAVX(struct RenderSettings rs);
+void mandelbrotNEON(struct RenderSettings rs);
 void mandelbrotGMP(struct RenderSettings rs);
 void mandelbrotCUDA(struct RenderSettings rs);
 void mandelbrotCUDAsp(struct RenderSettings rs);

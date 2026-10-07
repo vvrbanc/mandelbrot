@@ -55,6 +55,10 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         printf("Renderer: AVX\n");
         mandelbrotAVX(rs);
         break;
+    case TARGET_NEON:
+        printf("Renderer: NEON\n");
+        mandelbrotNEON(rs);
+        break;
     case TARGET_GMP:
         printf("Renderer: GMP\n");
         mandelbrotGMP(rs);
@@ -311,6 +315,11 @@ void handleEvent(SDL_Event event) {
             break;
         case SDL_SCANCODE_5:
             rendertarget = 4;
+            renderWindow(rend, tex, rs);
+            SDL_Delay(100);
+            break;
+        case SDL_SCANCODE_6:
+            rendertarget = 5;
             renderWindow(rend, tex, rs);
             SDL_Delay(100);
             break;

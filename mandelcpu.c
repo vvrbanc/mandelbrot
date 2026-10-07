@@ -139,6 +139,72 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
 #endif
 
+#ifndef __aarch64__
+void mandelbrotNEON(struct RenderSettings rs) {
+    mandelbrotCPU(rs);
+}
+#else
+
+void mandelbrotNEON(struct RenderSettings rs) {
+
+    double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
+    double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
+    double y1 = rs.yoffset + 2.0 / rs.zoom;
+
+    double pixel_pitch = (x2 - x1) / rs.width;
+
+    float64x2_t vxpitch = vdupq_n_f64(pixel_pitch);
+    float64x2_t vx1 = vdupq_n_f64(x1);
+    float64x2_t vFour = vdupq_n_f64(4.0);
+
+#pragma omp parallel for schedule(dynamic)
+    for (int y = 0; y < rs.height; y++) {
+        double cImag = y1 - pixel_pitch * y;
+        float64x2_t vcImag = vdupq_n_f64(cImag);
+
+        int x = 0;
+        for (; x < rs.width - (rs.width % 2); x += 2) {
+            double xs[2] = {x, x + 1};
+            float64x2_t vcReal = vfmaq_f64(vx1, vld1q_f64(xs), vxpitch);
+
+            float64x2_t vzReal = vcReal;
+            float64x2_t vzImag = vcImag;
+            uint64x2_t vIter = vdupq_n_u64(0);
+
+            for (uint i = 0; i < rs.iterations; i++) {
+                float64x2_t vz2Real = vmulq_f64(vzReal, vzReal);
+                float64x2_t vz2Imag = vmulq_f64(vzImag, vzImag);
+                float64x2_t vzrzi = vmulq_f64(vzReal, vzImag);
+
+                vzReal = vaddq_f64(vsubq_f64(vz2Real, vz2Imag), vcReal);
+                vzImag = vaddq_f64(vaddq_f64(vzrzi, vzrzi), vcImag);
+
+                // mask lanes are all-ones (-1) while still inside the radius, so subtracting counts iterations
+                uint64x2_t mask = vcltq_f64(vaddq_f64(vz2Real, vz2Imag), vFour);
+                vIter = vsubq_u64(vIter, mask);
+
+                if ((vgetq_lane_u64(mask, 0) | vgetq_lane_u64(mask, 1)) == 0) {
+                    break;
+                }
+            }
+
+            uint64_t iters[2] = {vgetq_lane_u64(vIter, 0), vgetq_lane_u64(vIter, 1)};
+
+            for (int ii = 0; ii < 2; ii++) {
+                Uint32 color, colorbias;
+                if (iters[ii] == rs.iterations) {
+                    color = 0x000000FF;
+                } else {
+                    colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
+                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                }
+                rs.outputBuffer[x + y * rs.width + ii] = color;
+            }
+        }
+    }
+}
+#endif
+
 void mandelbrotGMP(struct RenderSettings rs) {
 
     mpf_set_default_prec(96);
