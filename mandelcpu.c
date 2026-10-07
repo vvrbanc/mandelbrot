@@ -27,19 +27,19 @@ void mandelbrotCPU(struct RenderSettings rs) {
             double cimag2 = cImag * cImag;
             double q = creal_m14 * creal_m14 + cimag2;
             if (q * (q + creal_m14) <= 0.25 * cimag2) {
-                rs.outputBuffer[x + y * rs.width] = 0;
+                rs.outputBuffer[x + y * rs.width] = 0x000000FF; // RGBA for opaque black
                 continue;
             }
             double creal_p1 = cReal + 1.0;
             if (creal_p1 * creal_p1 + cimag2 <= 0.0625) {
-                rs.outputBuffer[x + y * rs.width] = 0;
+                rs.outputBuffer[x + y * rs.width] = 0x000000FF;
                 continue;
             }
 
             zReal = cReal;
             zImag = cImag;
 
-            color = 0; // black as default for values that converge to 0
+            color = 0x000000FF; // black as default for values that converge to 0
 
             // Mandelbrot calc for current (x,y) pixel
             for (uint i = 0; i < rs.iterations; i++) {
