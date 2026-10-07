@@ -25,6 +25,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2 SDL2_image)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
+if(APPLE) # Apple clang needs brew's libomp
+  execute_process(COMMAND brew --prefix libomp OUTPUT_VARIABLE OpenMP_ROOT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
 find_package(OpenMP)
 find_library(GMP gmp REQUIRED)
 
