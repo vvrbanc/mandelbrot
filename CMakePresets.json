@@ -3,7 +3,7 @@
 	"configurePresets": [
 		{
 			"name": "debug",
-			"displayName": "Debug (-ggdb3 -O0 -Wpedantic -Wextra)",
+			"displayName": "Debug (-ggdb3 -O0)",
 			"generator": "Ninja",
 			"binaryDir": "${sourceDir}/build",
 			"cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
