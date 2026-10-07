@@ -336,12 +336,22 @@ void handleEvent(SDL_Event event) {
         // printf("%d\n", event.window.event);
         if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 
+            // width clamped to multiple of 8 so SIMD loops don't have tails
+            int width = event.window.data1 & ~7;
+            int height = event.window.data2;
+            if (width < 96)
+                width = 96;
+            if (height < 96)
+                height = 96;
+            if (width != event.window.data1 || height != event.window.data2)
+                SDL_SetWindowSize(win, width, height);
+
             mutexstatus = SDL_TryLockMutex(mutex);
 
             if (mutexstatus == 0) {
                 SDL_DestroyTexture(tex);
-                rs.width = event.window.data1;
-                rs.height = event.window.data2;
+                rs.width = width;
+                rs.height = height;
                 tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_RGBA8888,
                                         SDL_TEXTUREACCESS_STREAMING,
                                         rs.width, rs.height);
