@@ -2,8 +2,8 @@
 #ifndef MANDELMAIN_H
 #define MANDELMAIN_H
 
-#define INITIAL_WINDOW_WIDTH (2048)
-#define INITIAL_WINDOW_HEIGHT (2048)
+#define INITIAL_WINDOW_WIDTH (1024)
+#define INITIAL_WINDOW_HEIGHT (1024)
 
 #define MAX_SHADER_SIZE 100000
 
@@ -11,7 +11,9 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_stdinc.h>
 #include <cglm/cglm.h>
+#ifdef __x86_64__
 #include <immintrin.h>
+#endif
 #include <stdio.h>
 #include <sys/param.h>
 

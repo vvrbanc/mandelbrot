@@ -1,7 +1,7 @@
 #include "mandelmain.h"
 #include <time.h>
 
-int rendertarget = TARGET_AVX;
+int rendertarget = TARGET_CPU;
 
 SDL_Window *win;
 SDL_Renderer *rend;
@@ -94,6 +94,18 @@ void setupSDL() {
     tex = SDL_CreateTexture(rend, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING,
                             rs.width, rs.height);
     mutex = SDL_CreateMutex();
+}
+
+void initGLEW() {
+    if (SDL_GL_GetCurrentContext() == NULL) {
+        return;
+    }
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+        /* Problem: glewInit failed, something is seriously wrong. */
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+    }
+    fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 }
 
 // clang-format off
@@ -346,12 +358,8 @@ int main(int argc, char *argv[]) {
 #ifdef USE_CUDA
     initCUDA(rs);
 #endif
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        /* Problem: glewInit failed, something is seriously wrong. */
-        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
-    }
-    fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
+
+    initGLEW();
 
     if (argc > 1 && strcmp(argv[1], "bench") == 0) {
         close_requested = 1;

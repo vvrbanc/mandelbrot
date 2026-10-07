@@ -60,7 +60,11 @@ void mandelbrotCPU(struct RenderSettings rs) {
         }
     }
 }
-
+#ifndef __AVX__
+void mandelbrotAVX(struct RenderSettings rs) {
+    mandelbrotCPU(rs);
+}
+#else
 void mandelbrotAVX(struct RenderSettings rs) {
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
@@ -132,6 +136,8 @@ void mandelbrotAVX(struct RenderSettings rs) {
         }
     }
 }
+
+#endif
 
 void mandelbrotGMP(struct RenderSettings rs) {
 
