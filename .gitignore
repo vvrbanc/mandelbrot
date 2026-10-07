@@ -4,4 +4,6 @@ sdltest.layout
 *.o
 build
 build-release
+build-release-gcc
 .cache
+
