@@ -10,7 +10,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
     double pixel_pitch = (x2 - x1) / rs.width;
     double colorscale = 510.0 / rs.iterations;
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
         double cReal, cImag, zReal, zImag, z2Real, z2Imag, zrzi;
         Uint32 color;
@@ -78,7 +78,7 @@ void mandelbrotAVX(struct RenderSettings rs) {
     __m256d vOne = _mm256_set1_pd(1);
     __m256d vFour = _mm256_set1_pd(4);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
         __m256d vzrzi;
         __m256d vcImag = _mm256_set1_pd(y1 - pixel_pitch * y);
@@ -164,7 +164,7 @@ void mandelbrotGMP(struct RenderSettings rs) {
     mpf_sub(gpixel_pitch, gx2, gx1);
     mpf_div(gpixel_pitch, gpixel_pitch, gTmp);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
         mpf_t gcReal, gcImag, gzReal, gzImag, gz2Real, gz2Imag, gzrzi, gzTmp;
         mpf_inits(gcReal, gcImag, gzReal, gzImag, gz2Real, gz2Imag, gzrzi, gzTmp, NULL);

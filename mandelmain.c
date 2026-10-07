@@ -274,6 +274,11 @@ void handleEvent(SDL_Event event) {
             SDL_GL_DeleteContext(glcontext);
             free(data);
             break;
+        case SDL_SCANCODE_T:
+            rs.multithreaded = !rs.multithreaded;
+            printf("Multithreading: %s\n", rs.multithreaded ? "on" : "off");
+            renderWindow(rend, tex, rs);
+            break;
         case SDL_SCANCODE_W:
             rs.iterations = rs.iterations * 2;
             renderWindow(rend, tex, rs);
@@ -351,6 +356,7 @@ int main(int argc, char *argv[]) {
     rs.xoffset = 0;
     rs.yoffset = 0;
     rs.iterations = 50;
+    rs.multithreaded = 1;
     rs.width = INITIAL_WINDOW_WIDTH;
     rs.height = INITIAL_WINDOW_HEIGHT;
 

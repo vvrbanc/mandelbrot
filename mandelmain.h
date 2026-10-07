@@ -38,6 +38,7 @@ struct RenderSettings {
     double yoffset;
     unsigned int iterations;
     uint32_t *deviceBuffer;
+    int multithreaded;
 };
 
 void mandelbrotCPU(struct RenderSettings rs);
