@@ -14,10 +14,21 @@
 			"generator": "Ninja",
 			"binaryDir": "${sourceDir}/build-release",
 			"cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+		},
+		{
+			"name": "release-gcc",
+			"displayName": "Release (optimized, GCC)",
+			"inherits": "release",
+			"binaryDir": "${sourceDir}/build-release-gcc",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "gcc-16",
+				"CMAKE_CXX_COMPILER": "g++-16"
+			}
 		}
 	],
 	"buildPresets": [
 		{ "name": "debug", "configurePreset": "debug" },
-		{ "name": "release", "configurePreset": "release" }
+		{ "name": "release", "configurePreset": "release" },
+		{ "name": "release-gcc", "configurePreset": "release-gcc" }
 	]
 }

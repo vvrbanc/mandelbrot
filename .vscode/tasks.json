@@ -19,8 +19,16 @@
 		},
 		{
 			"type": "shell",
+			"label": "Build release (gcc)",
+			"command": "cmake --preset release-gcc && cmake --build --preset release-gcc",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": "build",
+			"detail": "build-release-gcc/ : optimized, gcc"
+		},
+		{
+			"type": "shell",
 			"label": "Clean all",
-			"command": "rm -rf build build-release",
+			"command": "rm -rf build build-release build-release-gcc",
 			"options": { "cwd": "${workspaceFolder}" },
 			"problemMatcher": []
 		}
