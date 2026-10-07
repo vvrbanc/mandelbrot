@@ -2,3 +2,5 @@ mandelbrot
 sdltest
 sdltest.layout
 *.o
+build
+build-release

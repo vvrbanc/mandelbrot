@@ -1,49 +1,23 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch mandel",
-            "type": "cppdbg",
+            "name": "Debug mandelbrot",
+            "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/mandelbrot",
+            "program": "${workspaceFolder}/build/mandelbrot",
             "args": [],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "preLaunchTask": "Make mandel",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "preLaunchTask": "Build debug"
         },
         {
-            "name": "(gdb) Launch mandel (nvcc)",
-            "type": "cppdbg",
+            "name": "Run release mandelbrot",
+            "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/mandelbrot",
+            "program": "${workspaceFolder}/build-release/mandelbrot",
             "args": [],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "preLaunchTask": "Make cudabuild",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "preLaunchTask": "Build release"
         }
-
     ]
 }

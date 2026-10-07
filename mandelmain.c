@@ -35,6 +35,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
     start = curTime.tv_sec * 1000000000 + curTime.tv_nsec;
 
     switch (rendertarget) {
+#ifdef USE_CUDA
     case TARGET_CUDA:
         printf("Renderer: CUDA double precision\n");
         mandelbrotCUDA(rs);
@@ -43,6 +44,13 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         printf("Renderer: CUDA single precision\n");
         mandelbrotCUDAsp(rs);
         break;
+#else
+    case TARGET_CUDA:
+    case TARGET_CUDASP:
+        printf("CUDA support not compiled in, using CPU\n");
+        mandelbrotCPU(rs);
+        break;
+#endif
     case TARGET_AVX:
         printf("Renderer: AVX\n");
         mandelbrotAVX(rs);
@@ -335,8 +343,9 @@ int main(int argc, char *argv[]) {
     rs.height = INITIAL_WINDOW_HEIGHT;
 
     setupSDL();
+#ifdef USE_CUDA
     initCUDA(rs);
-
+#endif
     GLenum err = glewInit();
     if (GLEW_OK != err) {
         /* Problem: glewInit failed, something is seriously wrong. */
@@ -379,6 +388,8 @@ int main(int argc, char *argv[]) {
 
     SDL_DestroyRenderer(rend);
     SDL_DestroyWindow(win);
+#ifdef USE_CUDA
     freeCUDA();
+#endif
     SDL_Quit();
 }

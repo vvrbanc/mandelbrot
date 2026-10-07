@@ -2,36 +2,27 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "cppbuild",
-			"label": "Make mandel",
-			"command": "/usr/bin/make",
-			"args": [
-				"mandelbrot"
-			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"problemMatcher": [
-				"$gcc"
-			],
-			"group": "build",
-			"detail": "compiler: /usr/bin/gcc"
+			"type": "shell",
+			"label": "Build debug",
+			"command": "cmake --preset debug && cmake --build --preset debug",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": { "kind": "build", "isDefault": true },
+			"detail": "build/ : -ggdb3 -O0 -Wpedantic -Wextra"
 		},
 		{
-			"type": "cppbuild",
-			"label": "Make cudabuild",
-			"command": "/usr/bin/make",
-			"args": [
-				"cudabuild"
-			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"problemMatcher": [
-				"$gcc"
-			],
+			"type": "shell",
+			"label": "Build release",
+			"command": "cmake --preset release && cmake --build --preset release",
+			"options": { "cwd": "${workspaceFolder}" },
 			"group": "build",
-			"detail": "compiler: /usr/bin/gcc"
+			"detail": "build-release/ : optimized"
+		},
+		{
+			"type": "shell",
+			"label": "Clean all",
+			"command": "rm -rf build build-release",
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
 		}
 	]
 }
