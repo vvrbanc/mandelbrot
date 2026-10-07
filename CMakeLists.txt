@@ -38,7 +38,12 @@ if(OpenMP_C_FOUND)
 endif()
 set_property(TARGET mandelbrot PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
-target_compile_options(mandelbrot PRIVATE -march=native -mtune=native)
+if(APPLE AND CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    # homebrew gcc on MacOS rejects -march=native
+    target_compile_options(mandelbrot PRIVATE -mcpu=native)
+else()
+    target_compile_options(mandelbrot PRIVATE -march=native -mtune=native)
+endif()
 target_link_libraries(mandelbrot stdc++)
 
 if(CUDA)
