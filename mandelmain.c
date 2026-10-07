@@ -357,17 +357,9 @@ int main(int argc, char *argv[]) {
         close_requested = 1;
 
         // arbitrarily chosen zoom point for benchmarking
-        rs.xoffset = -1.484935782949454;
-        rs.zoom = 16585998.481410;
-        rs.iterations = 5000;
-
-        // rs.xoffset = -1.478036884621246;
-        // rs.zoom = 194.619507;
-        // rs.iterations = 500;
-
-        // rs.xoffset = -1.483321409799798;
-        // rs.zoom = 16100687809804.728516;
-        // rs.iterations = 25600;
+        rs.xoffset = -1.483183768341172;
+        rs.zoom = 942335637702.334351;
+        rs.iterations = 40000;
 
         rendertarget = TARGET_CPU;
         renderWindow(rend, tex, rs);
@@ -376,6 +368,8 @@ int main(int argc, char *argv[]) {
         rendertarget = TARGET_CUDASP;
         renderWindow(rend, tex, rs);
         rendertarget = TARGET_CUDA;
+        // renderWindow(rend, tex, rs);
+        // rendertarget = TARGET_GMP;
     }
 
     renderWindow(rend, tex, rs);
