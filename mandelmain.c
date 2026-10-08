@@ -251,7 +251,7 @@ void handleEvent(SDL_Event event) {
 
             rs.outputBuffer = data;
 
-            mandelbrotAVX(rs);
+            mandelbrotCPU(rs);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rs.width, rs.height, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, data);
             glGenerateMipmap(GL_TEXTURE_2D);
 
