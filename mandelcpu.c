@@ -61,6 +61,13 @@ void mandelbrotCPU(struct RenderSettings rs) {
     }
 }
 #ifdef __AVX__
+
+#define AVX_UNROLL 2
+// ^^ number of independent avx vectors iterated per hot loop.
+// this is faster because each iteration needs previous one's vzReal/vzImag,
+// and by processing 2+ AVX_UNROLL vectors per iteration the out-of-order execution
+// keeps CPU's FP ports busy
+
 void mandelbrotAVX(struct RenderSettings rs) {
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
@@ -76,58 +83,60 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
-        __m256d vzrzi;
         __m256d vcImag = _mm256_set1_pd(y1 - pixel_pitch * y);
 
-        for (int x = 0; x < rs.width - (rs.width % 4); x += 4) {
+        for (int x = 0; x < rs.width; x += 4 * AVX_UNROLL) {
+            __m256d vcReal[AVX_UNROLL], vzReal[AVX_UNROLL], vzImag[AVX_UNROLL], vIter[AVX_UNROLL], vz2Real[AVX_UNROLL], vz2Imag[AVX_UNROLL], vzrzi[AVX_UNROLL];
 
-            // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
+            for (int k = 0; k < AVX_UNROLL; k++) {
+                int xk = x + 4 * k;
 
-            __m256d mx = _mm256_set_pd(x + 3, x + 2, x + 1, x);
-            __m256d vcReal = _mm256_add_pd(_mm256_mul_pd(mx, vxpitch), vx1);
-
-            __m256d vzReal = vcReal;
-            __m256d vzImag = vcImag;
-
-            __m256d vz2Real = vcReal;
-            __m256d vz2Imag = vcImag;
-
-            __m256d vIter = _mm256_set1_pd(0);
-
-            // Mandelbrot calc for current (x,y) pixel
+                __m256d mx = _mm256_set_pd(xk + 3, xk + 2, xk + 1, xk);
+                vcReal[k] = _mm256_add_pd(_mm256_mul_pd(mx, vxpitch), vx1);
+                vzReal[k] = vcReal[k];
+                vzImag[k] = vcImag;
+                vz2Real[k] = vcReal[k];
+                vz2Imag[k] = vcImag;
+                vIter[k] = _mm256_set1_pd(0);
+            }
+            // Mandelbrot calc for current 4*AVX_UNROLL pixels
             for (uint i = 0; i < rs.iterations; i++) {
+                __m256d anyInside = _mm256_setzero_pd();
 
-                vz2Real = _mm256_mul_pd(vzReal, vzReal);
-                vz2Imag = _mm256_mul_pd(vzImag, vzImag);
+                for (int k = 0; k < AVX_UNROLL; k++) {
+                    vz2Real[k] = _mm256_mul_pd(vzReal[k], vzReal[k]);
+                    vz2Imag[k] = _mm256_mul_pd(vzImag[k], vzImag[k]);
 
-                vzrzi = _mm256_mul_pd(vzReal, vzImag);
-                vzReal = _mm256_add_pd(_mm256_sub_pd(vz2Real, vz2Imag), vcReal);
-                vzImag = _mm256_add_pd(_mm256_add_pd(vzrzi, vzrzi), vcImag);
+                    vzrzi[k] = _mm256_mul_pd(vzReal[k], vzImag[k]);
+                    vzReal[k] = _mm256_add_pd(_mm256_sub_pd(vz2Real[k], vz2Imag[k]), vcReal[k]);
+                    vzImag[k] = _mm256_add_pd(_mm256_add_pd(vzrzi[k], vzrzi[k]), vcImag);
 
-                __m256d mag2 = _mm256_add_pd(vz2Real, vz2Imag);
-                __m256d mask = _mm256_cmp_pd(mag2, vFour, _CMP_LT_OQ);
-                vIter = _mm256_add_pd(_mm256_and_pd(mask, vOne), vIter);
-
-                if (_mm256_testz_pd(mask, _mm256_set1_pd(-1))) {
+                    __m256d mag2 = _mm256_add_pd(vz2Real[k], vz2Imag[k]);
+                    __m256d mask = _mm256_cmp_pd(mag2, vFour, _CMP_LT_OQ);
+                    vIter[k] = _mm256_add_pd(_mm256_and_pd(mask, vOne), vIter[k]);
+                    anyInside = _mm256_or_pd(anyInside, mask);
+                }
+                if (_mm256_testz_pd(anyInside, anyInside)) {
                     break;
                 }
             }
 
-            // convert 4x double vector (256) to 4x int32 (128) and copy to ram as uint32[4]
-            Uint32 iters[4];
-            _mm_store_si128((__m128i *)iters, _mm256_cvtpd_epi32(vIter));
+            for (int k = 0; k < AVX_UNROLL; k++) {
+                // convert 4x double vector (256) to 4x int32 (128) and copy to ram as uint32[4]
+                Uint32 iters[4];
+                _mm_storeu_si128((__m128i *)iters, _mm256_cvtpd_epi32(vIter[k]));
 
-            Uint32 color, colorbias;
-
-            // calculate color for the 4 dumped pixels
-            for (int ii = 0; ii < 4; ii++) {
-                if (iters[ii] == rs.iterations) {
-                    color = 0x000000FF;
-                } else {
-                    colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
-                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                // calculate color for the 4 dumped pixels
+                for (int ii = 0; ii < 4; ii++) {
+                    Uint32 color, colorbias;
+                    if (iters[ii] == rs.iterations) {
+                        color = 0x000000FF;
+                    } else {
+                        colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
+                        color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                    }
+                    rs.outputBuffer[x + 4 * k + y * rs.width + ii] = color;
                 }
-                rs.outputBuffer[x + y * rs.width + ii] = color;
             }
         }
     }
