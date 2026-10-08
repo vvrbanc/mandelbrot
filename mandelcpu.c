@@ -15,7 +15,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
         double cReal[CPU_UNROLL], cImag;
-            cImag = y1 - pixel_pitch * y;
+        cImag = y1 - pixel_pitch * y;
 
         for (int x = 0; x < rs.width; x += CPU_UNROLL) {
             double zReal[CPU_UNROLL], zImag[CPU_UNROLL];
@@ -64,6 +64,9 @@ void mandelbrotCPU(struct RenderSettings rs) {
 // and by processing 2+ AVX_UNROLL vectors per iteration the out-of-order execution
 // keeps CPU's FP ports busy
 
+#define AVX_CHECK_INTERVAL 8
+// ^^ iterations between all-lanes-escaped checks (compare+branch is off the hot path)
+
 void mandelbrotAVX(struct RenderSettings rs) {
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
@@ -71,10 +74,10 @@ void mandelbrotAVX(struct RenderSettings rs) {
     double y1 = rs.yoffset + 2.0 / rs.zoom;
 
     double pixel_pitch = (x2 - x1) / rs.width;
+    double colorscale = 510.0 / rs.iterations;
 
     __m256d vxpitch = _mm256_set1_pd(pixel_pitch);
     __m256d vx1 = _mm256_set1_pd(x1);
-    __m256d vOne = _mm256_set1_pd(1);
     __m256d vFour = _mm256_set1_pd(4);
 
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
@@ -82,35 +85,38 @@ void mandelbrotAVX(struct RenderSettings rs) {
         __m256d vcImag = _mm256_set1_pd(y1 - pixel_pitch * y);
 
         for (int x = 0; x < rs.width; x += 4 * AVX_UNROLL) {
-            __m256d vcReal[AVX_UNROLL], vzReal[AVX_UNROLL], vzImag[AVX_UNROLL], vIter[AVX_UNROLL], vz2Real[AVX_UNROLL], vz2Imag[AVX_UNROLL], vzrzi[AVX_UNROLL];
+            __m256d vcReal[AVX_UNROLL], vzReal[AVX_UNROLL], vzImag[AVX_UNROLL];
+            __m256i vIter[AVX_UNROLL];
 
             for (int k = 0; k < AVX_UNROLL; k++) {
                 int xk = x + 4 * k;
 
                 __m256d mx = _mm256_set_pd(xk + 3, xk + 2, xk + 1, xk);
-                vcReal[k] = _mm256_add_pd(_mm256_mul_pd(mx, vxpitch), vx1);
+                vcReal[k] = _mm256_fmadd_pd(mx, vxpitch, vx1);
                 vzReal[k] = vcReal[k];
                 vzImag[k] = vcImag;
-                vz2Real[k] = vcReal[k];
-                vz2Imag[k] = vcImag;
-                vIter[k] = _mm256_set1_pd(0);
+                vIter[k] = _mm256_setzero_si256();
             }
-            // Mandelbrot calc for current 4*AVX_UNROLL pixels
-            for (uint i = 0; i < rs.iterations; i++) {
-                __m256d anyInside = _mm256_setzero_pd();
 
-                for (int k = 0; k < AVX_UNROLL; k++) {
-                    vz2Real[k] = _mm256_mul_pd(vzReal[k], vzReal[k]);
-                    vz2Imag[k] = _mm256_mul_pd(vzImag[k], vzImag[k]);
+            for (uint i = 0; i < rs.iterations; i += AVX_CHECK_INTERVAL) {
+                uint n = MIN(AVX_CHECK_INTERVAL, rs.iterations - i); // check for escape only once per AVX_CHECK_INTERVAL
+                __m256d vMask[AVX_UNROLL];
 
-                    vzrzi[k] = _mm256_mul_pd(vzReal[k], vzImag[k]);
-                    vzReal[k] = _mm256_add_pd(_mm256_sub_pd(vz2Real[k], vz2Imag[k]), vcReal[k]);
-                    vzImag[k] = _mm256_add_pd(_mm256_add_pd(vzrzi[k], vzrzi[k]), vcImag);
+                for (uint j = 0; j < n; j++) {
+                    for (int k = 0; k < AVX_UNROLL; k++) {
+                        __m256d mag2 = _mm256_fmadd_pd(vzReal[k], vzReal[k], _mm256_mul_pd(vzImag[k], vzImag[k]));
+                        __m256d tmpval = _mm256_fnmadd_pd(vzImag[k], vzImag[k], vcReal[k]);
+                        vzImag[k] = _mm256_fmadd_pd(_mm256_add_pd(vzReal[k], vzReal[k]), vzImag[k], vcImag);
+                        vzReal[k] = _mm256_fmadd_pd(vzReal[k], vzReal[k], tmpval);
+                        vMask[k] = _mm256_cmp_pd(mag2, vFour, _CMP_LT_OQ);
+                        // mask lanes are all-ones (-1) when inside, so subtracting counts the iteration
+                        vIter[k] = _mm256_sub_epi64(vIter[k], _mm256_castpd_si256(vMask[k]));
+                    }
+                }
 
-                    __m256d mag2 = _mm256_add_pd(vz2Real[k], vz2Imag[k]);
-                    __m256d mask = _mm256_cmp_pd(mag2, vFour, _CMP_LT_OQ);
-                    vIter[k] = _mm256_add_pd(_mm256_and_pd(mask, vOne), vIter[k]);
-                    anyInside = _mm256_or_pd(anyInside, mask);
+                __m256d anyInside = vMask[0];
+                for (int k = 1; k < AVX_UNROLL; k++) {
+                    anyInside = _mm256_or_pd(anyInside, vMask[k]);
                 }
                 if (_mm256_testz_pd(anyInside, anyInside)) {
                     break;
@@ -118,17 +124,15 @@ void mandelbrotAVX(struct RenderSettings rs) {
             }
 
             for (int k = 0; k < AVX_UNROLL; k++) {
-                // convert 4x double vector (256) to 4x int32 (128) and copy to ram as uint32[4]
-                uint32_t iters[4];
-                _mm_storeu_si128((__m128i *)iters, _mm256_cvtpd_epi32(vIter[k]));
+                uint64_t iters[4];
+                _mm256_storeu_si256((__m256i *)iters, vIter[k]);
 
-                // calculate color for the 4 dumped pixels
                 for (int ii = 0; ii < 4; ii++) {
                     uint32_t color, colorbias;
                     if (iters[ii] == rs.iterations) {
                         color = 0x000000FF;
                     } else {
-                        colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
+                        colorbias = MIN(255, iters[ii] * colorscale);
                         color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                     }
                     rs.outputBuffer[x + 4 * k + y * rs.width + ii] = color;
