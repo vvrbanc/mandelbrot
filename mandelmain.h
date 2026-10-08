@@ -46,13 +46,19 @@ struct RenderSettings {
 };
 
 void mandelbrotCPU(struct RenderSettings rs);
+#ifdef __AVX__
 void mandelbrotAVX(struct RenderSettings rs);
+#endif
+#ifdef __aarch64__
 void mandelbrotNEON(struct RenderSettings rs);
+#endif
 void mandelbrotGMP(struct RenderSettings rs);
+#ifdef USE_CUDA
 void mandelbrotCUDA(struct RenderSettings rs);
 void mandelbrotCUDAsp(struct RenderSettings rs);
 void initCUDA(struct RenderSettings rs);
 void freeCUDA();
+#endif
 void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);
 
 #endif

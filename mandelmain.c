@@ -3,6 +3,23 @@
 
 int rendertarget = TARGET_CPU;
 
+// Renderers compiled into this build, in number-key order (1..N)
+static const int renderers[] = {
+    TARGET_CPU,
+#ifdef __AVX__
+    TARGET_AVX,
+#endif
+#ifdef __aarch64__
+    TARGET_NEON,
+#endif
+#ifdef USE_CUDA
+    TARGET_CUDASP,
+    TARGET_CUDA,
+#endif
+    TARGET_GMP,
+};
+#define NUM_RENDERERS ((int)(sizeof renderers / sizeof renderers[0]))
+
 SDL_Window *win;
 SDL_Renderer *rend;
 SDL_Texture *tex;
@@ -44,21 +61,19 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         printf("Renderer: CUDA single precision\n");
         mandelbrotCUDAsp(rs);
         break;
-#else
-    case TARGET_CUDA:
-    case TARGET_CUDASP:
-        printf("CUDA support not compiled in, using CPU\n");
-        mandelbrotCPU(rs);
-        break;
 #endif
+#ifdef __AVX__
     case TARGET_AVX:
         printf("Renderer: AVX\n");
         mandelbrotAVX(rs);
         break;
+#endif
+#ifdef __aarch64__
     case TARGET_NEON:
         printf("Renderer: NEON\n");
         mandelbrotNEON(rs);
         break;
+#endif
     case TARGET_GMP:
         printf("Renderer: GMP\n");
         mandelbrotGMP(rs);
@@ -294,37 +309,23 @@ void handleEvent(SDL_Event event) {
             }
             break;
         case SDL_SCANCODE_1:
-            rendertarget = 0;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
-            break;
         case SDL_SCANCODE_2:
-            rendertarget = 1;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
-            break;
         case SDL_SCANCODE_3:
-            rendertarget = 2;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
-            break;
         case SDL_SCANCODE_4:
-            rendertarget = 3;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
-            break;
         case SDL_SCANCODE_5:
-            rendertarget = 4;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
-            break;
         case SDL_SCANCODE_6:
-            rendertarget = 5;
-            renderWindow(rend, tex, rs);
-            SDL_Delay(100);
+        case SDL_SCANCODE_7:
+        case SDL_SCANCODE_8:
+        case SDL_SCANCODE_9:
+            int idx = event.key.keysym.scancode - SDL_SCANCODE_1;
+            if (idx >= 0 && idx < NUM_RENDERERS) {
+                rendertarget = renderers[idx];
+                renderWindow(rend, tex, rs);
+                SDL_Delay(100);
             break;
         default:
             break;
+        }
         }
         printf("Xoffset: %.15f\n", rs.xoffset);
         printf("Yoffset: %.15f\n", rs.yoffset);
