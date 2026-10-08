@@ -24,11 +24,19 @@
 				"CMAKE_C_COMPILER": "gcc-16",
 				"CMAKE_CXX_COMPILER": "g++-16"
 			}
+		},
+		{
+			"name": "release-headless",
+			"displayName": "Release (optimized, no GUI, bench only)",
+			"inherits": "release",
+			"binaryDir": "${sourceDir}/build-release-headless",
+			"cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "GUI": "OFF" }
 		}
 	],
 	"buildPresets": [
 		{ "name": "debug", "configurePreset": "debug" },
 		{ "name": "release", "configurePreset": "release" },
-		{ "name": "release-gcc", "configurePreset": "release-gcc" }
+		{ "name": "release-gcc", "configurePreset": "release-gcc" },
+		{ "name": "release-headless", "configurePreset": "release-headless" }
 	]
 }

@@ -5,5 +5,7 @@ sdltest.layout
 build
 build-release
 build-release-gcc
+build-headless
 .cache
 
+build-release-headless

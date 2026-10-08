@@ -1,26 +1,17 @@
-
 #ifndef MANDELMAIN_H
 #define MANDELMAIN_H
 
 #define INITIAL_WINDOW_WIDTH (2048)
 #define INITIAL_WINDOW_HEIGHT (2048)
 
-#define MAX_SHADER_SIZE 100000
-
-#include "mandelcpu.h"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_stdinc.h>
-#include <cglm/cglm.h>
 #ifdef __x86_64__
 #include <immintrin.h>
 #endif
 #ifdef __aarch64__
 #include <arm_neon.h>
 #endif
-#include <stdio.h>
+#include <stdint.h>
 #include <sys/param.h>
-
-#include <GL/glew.h>
 
 #include <gmp.h>
 
@@ -59,6 +50,15 @@ void mandelbrotCUDAsp(struct RenderSettings rs);
 void initCUDA(struct RenderSettings rs);
 void freeCUDA();
 #endif
-void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs);
+
+extern const int renderers[];
+extern const int num_renderers;
+
+// renders into rs.outputBuffer with the given renderer, returns elapsed seconds
+double renderMandelbrot(struct RenderSettings rs, int target);
+
+#ifdef USE_GUI
+void runGUI(struct RenderSettings rs);
+#endif
 
 #endif

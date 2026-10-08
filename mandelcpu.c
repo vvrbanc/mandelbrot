@@ -1,4 +1,4 @@
-
+#include "mandelcpu.h"
 #include "mandelmain.h"
 
 void mandelbrotCPU(struct RenderSettings rs) {
@@ -13,8 +13,8 @@ void mandelbrotCPU(struct RenderSettings rs) {
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
         double cReal, cImag, zReal, zImag, z2Real, z2Imag, zrzi;
-        Uint32 color;
-        Uint32 colorbias;
+        uint32_t color;
+        uint32_t colorbias;
 
         for (int x = 0; x < rs.width; x++) {
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
@@ -123,12 +123,12 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
             for (int k = 0; k < AVX_UNROLL; k++) {
                 // convert 4x double vector (256) to 4x int32 (128) and copy to ram as uint32[4]
-                Uint32 iters[4];
+                uint32_t iters[4];
                 _mm_storeu_si128((__m128i *)iters, _mm256_cvtpd_epi32(vIter[k]));
 
                 // calculate color for the 4 dumped pixels
                 for (int ii = 0; ii < 4; ii++) {
-                    Uint32 color, colorbias;
+                    uint32_t color, colorbias;
                     if (iters[ii] == rs.iterations) {
                         color = 0x000000FF;
                     } else {
@@ -191,7 +191,7 @@ void mandelbrotNEON(struct RenderSettings rs) {
             uint64_t iters[2] = {vgetq_lane_u64(vIter, 0), vgetq_lane_u64(vIter, 1)};
 
             for (int ii = 0; ii < 2; ii++) {
-                Uint32 color, colorbias;
+                uint32_t color, colorbias;
                 if (iters[ii] == rs.iterations) {
                     color = 0x000000FF;
                 } else {
@@ -234,8 +234,8 @@ void mandelbrotGMP(struct RenderSettings rs) {
     for (int y = 0; y < rs.height; y++) {
         mpf_t gcReal, gcImag, gzReal, gzImag, gz2Real, gz2Imag, gzrzi, gzTmp;
         mpf_inits(gcReal, gcImag, gzReal, gzImag, gz2Real, gz2Imag, gzrzi, gzTmp, NULL);
-        Uint32 color;
-        Uint32 colorbias;
+        uint32_t color;
+        uint32_t colorbias;
 
         for (int x = 0; x < rs.width; x++) {
             // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
