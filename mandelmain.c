@@ -83,6 +83,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         mandelbrotCPU(rs);
         break;
     default:
+        printf("Renderer default: CPU\n");
         mandelbrotCPU(rs);
         break;
     }
