@@ -23,20 +23,6 @@ void mandelbrotCPU(struct RenderSettings rs) {
             cReal = x1 + pixel_pitch * x;
             cImag = y1 - pixel_pitch * y;
 
-            // early-out for points inside the main cardioid:
-            double creal_m14 = cReal - 0.25;
-            double cimag2 = cImag * cImag;
-            double q = creal_m14 * creal_m14 + cimag2;
-            if (q * (q + creal_m14) <= 0.25 * cimag2) {
-                rs.outputBuffer[x + y * rs.width] = 0x000000FF; // RGBA for opaque black
-                continue;
-            }
-            double creal_p1 = cReal + 1.0;
-            if (creal_p1 * creal_p1 + cimag2 <= 0.0625) {
-                rs.outputBuffer[x + y * rs.width] = 0x000000FF;
-                continue;
-            }
-
             zReal = cReal;
             zImag = cImag;
 
