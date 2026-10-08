@@ -1,5 +1,6 @@
 #include "mandelcpu.h"
 #include "mandelmain.h"
+#include <math.h>
 
 void mandelbrotCPU(struct RenderSettings rs) {
 
@@ -12,7 +13,7 @@ void mandelbrotCPU(struct RenderSettings rs) {
 
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
-        double cReal, cImag, zReal, zImag, z2Real, z2Imag, zrzi;
+        double cReal, cImag, zReal, zImag;
         uint32_t color;
         uint32_t colorbias;
 
@@ -43,14 +44,12 @@ void mandelbrotCPU(struct RenderSettings rs) {
 
             // Mandelbrot calc for current (x,y) pixel
             for (uint i = 0; i < rs.iterations; i++) {
-                z2Real = zReal * zReal;
-                z2Imag = zImag * zImag;
-                zrzi = zReal * zImag;
+                double mag2 = fma(zReal, zReal, zImag * zImag); // |z|^2 = zReal^2 + zImag^2
+                double tmpval = fma(-zImag, zImag, cReal);      // cReal - zImag^2: the part of the next real value that doesn't need zReal^2 yet
+                zImag = fma(zReal + zReal, zImag, cImag);       // z' = z^2 + c, imaginary part: 2 * zReal * zImag + cImag
+                zReal = fma(zReal, zReal, tmpval);              // z' = z^2 + c, real part: zReal^2 - zImag^2 + cReal
 
-                zReal = cReal + z2Real - z2Imag;
-                zImag = zrzi + zrzi + cImag;
-
-                if (z2Real + z2Imag > 4.0f) {
+                if (mag2 > 4.0f) {
                     colorbias = MIN(255, i * colorscale);
                     color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
                     break;
