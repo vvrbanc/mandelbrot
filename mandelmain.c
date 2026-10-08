@@ -83,8 +83,7 @@ void renderWindow(SDL_Renderer *rend, SDL_Texture *tex, struct RenderSettings rs
         mandelbrotCPU(rs);
         break;
     default:
-        printf("Renderer default: CPU\n");
-        mandelbrotCPU(rs);
+        printf("Renderer undefined!\n");
         break;
     }
 
@@ -323,10 +322,10 @@ void handleEvent(SDL_Event event) {
                 rendertarget = renderers[idx];
                 renderWindow(rend, tex, rs);
                 SDL_Delay(100);
-            break;
-        default:
-            break;
-        }
+                break;
+            default:
+                break;
+            }
         }
         printf("Xoffset: %.15f\n", rs.xoffset);
         printf("Yoffset: %.15f\n", rs.yoffset);
@@ -396,15 +395,10 @@ int main(int argc, char *argv[]) {
         rs.zoom = 942335637702.334351;
         rs.iterations = 40000;
 
-        rendertarget = TARGET_CPU;
-        renderWindow(rend, tex, rs);
-        rendertarget = TARGET_AVX;
-        renderWindow(rend, tex, rs);
-        rendertarget = TARGET_CUDASP;
-        renderWindow(rend, tex, rs);
-        rendertarget = TARGET_CUDA;
-        // renderWindow(rend, tex, rs);
-        // rendertarget = TARGET_GMP;
+        // benchmark all renderers except GMP
+        for (rendertarget = TARGET_CPU; rendertarget < NUM_RENDERERS - 1; rendertarget++) {
+            renderWindow(rend, tex, rs);
+        }
     }
 
     renderWindow(rend, tex, rs);
