@@ -2,6 +2,7 @@
 #include "mandelmain.h"
 #include <math.h>
 
+#define CPU_UNROLL 8
 void mandelbrotCPU(struct RenderSettings rs) {
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
@@ -13,35 +14,45 @@ void mandelbrotCPU(struct RenderSettings rs) {
 
 #pragma omp parallel for schedule(dynamic) if (rs.multithreaded)
     for (int y = 0; y < rs.height; y++) {
-        double cReal, cImag, zReal, zImag;
-        uint32_t color;
-        uint32_t colorbias;
-
-        for (int x = 0; x < rs.width; x++) {
-            // map screen coords to (0,0) -> (-2,2) through (WW,WH) -> (2, -2)
-
-            cReal = x1 + pixel_pitch * x;
+        double cReal[CPU_UNROLL], cImag;
             cImag = y1 - pixel_pitch * y;
 
-            zReal = cReal;
-            zImag = cImag;
+        for (int x = 0; x < rs.width; x += CPU_UNROLL) {
+            double zReal[CPU_UNROLL], zImag[CPU_UNROLL];
+            uint32_t iters[CPU_UNROLL];
+            int live[CPU_UNROLL];
+            int anyLive = 1;
 
-            color = 0x000000FF; // black as default for values that converge to 0
+            for (int k = 0; k < CPU_UNROLL; k++) {
+                cReal[k] = x1 + pixel_pitch * (x + k);
+                zReal[k] = cReal[k];
+                zImag[k] = cImag;
+                iters[k] = 0;
+                live[k] = 1;
+            }
 
-            // Mandelbrot calc for current (x,y) pixel
-            for (uint i = 0; i < rs.iterations; i++) {
-                double mag2 = fma(zReal, zReal, zImag * zImag); // |z|^2 = zReal^2 + zImag^2
-                double tmpval = fma(-zImag, zImag, cReal);      // cReal - zImag^2: the part of the next real value that doesn't need zReal^2 yet
-                zImag = fma(zReal + zReal, zImag, cImag);       // z' = z^2 + c, imaginary part: 2 * zReal * zImag + cImag
-                zReal = fma(zReal, zReal, tmpval);              // z' = z^2 + c, real part: zReal^2 - zImag^2 + cReal
+            for (uint i = 0; i < rs.iterations && anyLive; i++) {
+                anyLive = 0;
+                for (int k = 0; k < CPU_UNROLL; k++) {
+                    double mag2 = fma(zReal[k], zReal[k], zImag[k] * zImag[k]); // |z|^2 = zReal^2 + zImag^2
+                    double tmpval = fma(-zImag[k], zImag[k], cReal[k]);         // cReal - zImag^2: the part of the next real value that doesn't need zReal^2 yet
+                    zImag[k] = fma(zReal[k] + zReal[k], zImag[k], cImag);       // z' = z^2 + c, imaginary part: 2 * zReal * zImag + cImag
+                    zReal[k] = fma(zReal[k], zReal[k], tmpval);                 // z' = z^2 + c, real part: zReal^2 - zImag^2 + cReal
 
-                if (mag2 > 4.0f) {
-                    colorbias = MIN(255, i * colorscale);
-                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
-                    break;
+                    int inside = live[k] & (mag2 <= 4.0);
+                    iters[k] += inside;
+                    live[k] = inside;
+                    anyLive |= inside;
                 }
             }
-            rs.outputBuffer[x + y * rs.width] = color;
+            for (int k = 0; k < CPU_UNROLL; k++) {
+                uint32_t color = 0x000000FF;
+                if (iters[k] != rs.iterations) {
+                    uint32_t colorbias = MIN(255, iters[k] * colorscale);
+                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                }
+                rs.outputBuffer[x + k + y * rs.width] = color;
+            }
         }
     }
 }
