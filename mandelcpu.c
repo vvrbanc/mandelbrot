@@ -2,8 +2,21 @@
 #include "mandelmain.h"
 #include <math.h>
 
-#define CPU_UNROLL 8
 void mandelbrotCPU(struct RenderSettings rs) {
+
+#define CPU_UNROLL 8
+    // ^^ number of pixels iterated over in (sort of) parallel.
+    //
+    // each iteration needs previous one's zReal/zImag result,
+    // the hot loop is dominated by FMA latency.
+    //
+    // pixels are mutually independent, so by processing more than 1 per iteration
+    // we allow cpu's out-of-order scheduler to dispatch them in parallel
+    // and saturate the cpu's FP ports. 
+    // 
+    // CPU_UNROLL = 8 empirically found to be goldilocks value for my cpu.
+    //
+    // AVX and NEON versions use the same unroll trick
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
     double x2 = rs.xoffset + 2.0 / rs.zoom * rs.width / rs.height;
@@ -59,11 +72,6 @@ void mandelbrotCPU(struct RenderSettings rs) {
 #ifdef __AVX__
 
 #define AVX_UNROLL 2
-// ^^ number of independent avx vectors iterated per hot loop.
-// this is faster because each iteration needs previous one's vzReal/vzImag,
-// and by processing 2+ AVX_UNROLL vectors per iteration the out-of-order execution
-// keeps CPU's FP ports busy
-
 #define AVX_CHECK_INTERVAL 8
 // ^^ iterations between all-lanes-escaped checks (compare+branch is off the hot path)
 
@@ -162,8 +170,7 @@ void mandelbrotNEON(struct RenderSettings rs) {
         double cImag = y1 - pixel_pitch * y;
         float64x2_t vcImag = vdupq_n_f64(cImag);
 
-        int x = 0;
-        for (; x < rs.width - (rs.width % 2); x += 2) {
+        for (int x = 0; x < rs.width; x += 2) {
             double xs[2] = {x, x + 1};
             float64x2_t vcReal = vfmaq_f64(vx1, vld1q_f64(xs), vxpitch);
 
@@ -179,7 +186,6 @@ void mandelbrotNEON(struct RenderSettings rs) {
                 vzReal = vaddq_f64(vsubq_f64(vz2Real, vz2Imag), vcReal);
                 vzImag = vaddq_f64(vaddq_f64(vzrzi, vzrzi), vcImag);
 
-                // mask lanes are all-ones (-1) while still inside the radius, so subtracting counts iterations
                 uint64x2_t mask = vcltq_f64(vaddq_f64(vz2Real, vz2Imag), vFour);
                 vIter = vsubq_u64(vIter, mask);
 
@@ -251,7 +257,6 @@ void mandelbrotGMP(struct RenderSettings rs) {
 
             color = 0; // black as default for values that converge to 0
 
-            // Mandelbrot calc for current (x,y) pixel
             for (uint i = 0; i < rs.iterations; i++) {
                 mpf_mul(gz2Real, gzReal, gzReal);
                 mpf_mul(gz2Imag, gzImag, gzImag);
