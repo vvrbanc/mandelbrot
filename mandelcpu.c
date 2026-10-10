@@ -4,7 +4,7 @@
 
 void mandelbrotCPU(struct RenderSettings rs) {
 
-#define CPU_UNROLL 8
+#define CPU_UNROLL 16
     // ^^ number of pixels iterated over in (sort of) parallel.
     //
     // each iteration needs previous one's zReal/zImag result,
@@ -12,9 +12,9 @@ void mandelbrotCPU(struct RenderSettings rs) {
     //
     // pixels are mutually independent, so by processing more than 1 per iteration
     // we allow cpu's out-of-order scheduler to dispatch them in parallel
-    // and saturate the cpu's FP ports. 
-    // 
-    // CPU_UNROLL = 8 empirically found to be goldilocks value for my cpu.
+    // and saturate the cpu's FP ports.
+    //
+    // CPU_UNROLL = 16 empirically found to be goldilocks value for my cpus.
     //
     // AVX and NEON versions use the same unroll trick
 
@@ -154,6 +154,7 @@ void mandelbrotAVX(struct RenderSettings rs) {
 
 #ifdef __aarch64__
 
+#define NEON_UNROLL 4
 #define NEON_CHECK_INTERVAL 8
 
 void mandelbrotNEON(struct RenderSettings rs) {
@@ -163,6 +164,7 @@ void mandelbrotNEON(struct RenderSettings rs) {
     double y1 = rs.yoffset + 2.0 / rs.zoom;
 
     double pixel_pitch = (x2 - x1) / rs.width;
+    double colorscale = 510.0 / rs.iterations;
 
     float64x2_t vxpitch = vdupq_n_f64(pixel_pitch);
     float64x2_t vx1 = vdupq_n_f64(x1);
@@ -173,42 +175,54 @@ void mandelbrotNEON(struct RenderSettings rs) {
         double cImag = y1 - pixel_pitch * y;
         float64x2_t vcImag = vdupq_n_f64(cImag);
 
-        for (int x = 0; x < rs.width; x += 2) {
-            double xs[2] = {x, x + 1};
-            float64x2_t vcReal = vfmaq_f64(vx1, vld1q_f64(xs), vxpitch);
+        for (int x = 0; x < rs.width; x += 2 * NEON_UNROLL) {
+            float64x2_t vcReal[NEON_UNROLL], vzReal[NEON_UNROLL], vzImag[NEON_UNROLL];
+            uint64x2_t vIter[NEON_UNROLL];
 
-            float64x2_t vzReal = vcReal;
-            float64x2_t vzImag = vcImag;
-            uint64x2_t vIter = vdupq_n_u64(0);
+            for (int k = 0; k < NEON_UNROLL; k++) {
+                double xs[2] = {x + 2 * k, x + 2 * k + 1};
+                vcReal[k] = vfmaq_f64(vx1, vld1q_f64(xs), vxpitch);
+                vzReal[k] = vcReal[k];
+                vzImag[k] = vcImag;
+                vIter[k] = vdupq_n_u64(0);
+            }
 
             for (uint i = 0; i < rs.iterations; i += NEON_CHECK_INTERVAL) {
                 uint n = MIN(NEON_CHECK_INTERVAL, rs.iterations - i);
-                uint64x2_t mask;
+                uint64x2_t vMask[NEON_UNROLL];
                 for (uint j = 0; j < n; j++) {
-                    float64x2_t mag2 = vfmaq_f64(vmulq_f64(vzImag, vzImag), vzReal, vzReal);
-                    float64x2_t tmpval = vfmsq_f64(vcReal, vzImag, vzImag);
-                    vzImag = vfmaq_f64(vcImag, vaddq_f64(vzReal, vzReal), vzImag);
-                    vzReal = vfmaq_f64(tmpval, vzReal, vzReal);
-                    mask = vcltq_f64(mag2, vFour);
-                    vIter = vsubq_u64(vIter, mask);
+                    for (int k = 0; k < NEON_UNROLL; k++) {
+                        float64x2_t mag2 = vfmaq_f64(vmulq_f64(vzImag[k], vzImag[k]), vzReal[k], vzReal[k]);
+                        float64x2_t tmpval = vfmsq_f64(vcReal[k], vzImag[k], vzImag[k]);
+                        vzImag[k] = vfmaq_f64(vcImag, vaddq_f64(vzReal[k], vzReal[k]), vzImag[k]);
+                        vzReal[k] = vfmaq_f64(tmpval, vzReal[k], vzReal[k]);
+                        vMask[k] = vcltq_f64(mag2, vFour);
+                        vIter[k] = vsubq_u64(vIter[k], vMask[k]);
+                    }
                 }
 
-                if ((vgetq_lane_u64(mask, 0) | vgetq_lane_u64(mask, 1)) == 0) {
+                uint64x2_t anyInside = vMask[0];
+                for (int k = 1; k < NEON_UNROLL; k++) {
+                    anyInside = vorrq_u64(anyInside, vMask[k]);
+                }
+                if ((vgetq_lane_u64(anyInside, 0) | vgetq_lane_u64(anyInside, 1)) == 0) {
                     break;
                 }
             }
 
-            uint64_t iters[2] = {vgetq_lane_u64(vIter, 0), vgetq_lane_u64(vIter, 1)};
+            for (int k = 0; k < NEON_UNROLL; k++) {
+                uint64_t iters[2] = {vgetq_lane_u64(vIter[k], 0), vgetq_lane_u64(vIter[k], 1)};
 
-            for (int ii = 0; ii < 2; ii++) {
-                uint32_t color, colorbias;
-                if (iters[ii] == rs.iterations) {
-                    color = 0x000000FF;
-                } else {
-                    colorbias = MIN(255, iters[ii] * 510.0 / rs.iterations);
-                    color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                for (int ii = 0; ii < 2; ii++) {
+                    uint32_t color, colorbias;
+                    if (iters[ii] == rs.iterations) {
+                        color = 0x000000FF;
+                    } else {
+                        colorbias = MIN(255, iters[ii] * colorscale);
+                        color = (0x000000FF | (colorbias << 24) | (colorbias << 16) | colorbias << 8);
+                    }
+                    rs.outputBuffer[x + 2 * k + y * rs.width + ii] = color;
                 }
-                rs.outputBuffer[x + y * rs.width + ii] = color;
             }
         }
     }
