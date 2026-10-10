@@ -153,6 +153,9 @@ void mandelbrotAVX(struct RenderSettings rs) {
 #endif
 
 #ifdef __aarch64__
+
+#define NEON_CHECK_INTERVAL 8
+
 void mandelbrotNEON(struct RenderSettings rs) {
 
     double x1 = rs.xoffset - 2.0 / rs.zoom * rs.width / rs.height;
@@ -178,14 +181,17 @@ void mandelbrotNEON(struct RenderSettings rs) {
             float64x2_t vzImag = vcImag;
             uint64x2_t vIter = vdupq_n_u64(0);
 
-            for (uint i = 0; i < rs.iterations; i++) {
-                float64x2_t mag2 = vfmaq_f64(vmulq_f64(vzImag, vzImag), vzReal, vzReal);
-                float64x2_t tmpval = vfmsq_f64(vcReal, vzImag, vzImag);
-                vzImag = vfmaq_f64(vcImag, vaddq_f64(vzReal, vzReal), vzImag);
-                vzReal = vfmaq_f64(tmpval, vzReal, vzReal);
-
-                uint64x2_t mask = vcltq_f64(mag2, vFour);
-                vIter = vsubq_u64(vIter, mask);
+            for (uint i = 0; i < rs.iterations; i += NEON_CHECK_INTERVAL) {
+                uint n = MIN(NEON_CHECK_INTERVAL, rs.iterations - i);
+                uint64x2_t mask;
+                for (uint j = 0; j < n; j++) {
+                    float64x2_t mag2 = vfmaq_f64(vmulq_f64(vzImag, vzImag), vzReal, vzReal);
+                    float64x2_t tmpval = vfmsq_f64(vcReal, vzImag, vzImag);
+                    vzImag = vfmaq_f64(vcImag, vaddq_f64(vzReal, vzReal), vzImag);
+                    vzReal = vfmaq_f64(tmpval, vzReal, vzReal);
+                    mask = vcltq_f64(mag2, vFour);
+                    vIter = vsubq_u64(vIter, mask);
+                }
 
                 if ((vgetq_lane_u64(mask, 0) | vgetq_lane_u64(mask, 1)) == 0) {
                     break;
