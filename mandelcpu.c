@@ -179,14 +179,12 @@ void mandelbrotNEON(struct RenderSettings rs) {
             uint64x2_t vIter = vdupq_n_u64(0);
 
             for (uint i = 0; i < rs.iterations; i++) {
-                float64x2_t vz2Real = vmulq_f64(vzReal, vzReal);
-                float64x2_t vz2Imag = vmulq_f64(vzImag, vzImag);
-                float64x2_t vzrzi = vmulq_f64(vzReal, vzImag);
+                float64x2_t mag2 = vfmaq_f64(vmulq_f64(vzImag, vzImag), vzReal, vzReal);
+                float64x2_t tmpval = vfmsq_f64(vcReal, vzImag, vzImag);
+                vzImag = vfmaq_f64(vcImag, vaddq_f64(vzReal, vzReal), vzImag);
+                vzReal = vfmaq_f64(tmpval, vzReal, vzReal);
 
-                vzReal = vaddq_f64(vsubq_f64(vz2Real, vz2Imag), vcReal);
-                vzImag = vaddq_f64(vaddq_f64(vzrzi, vzrzi), vcImag);
-
-                uint64x2_t mask = vcltq_f64(vaddq_f64(vz2Real, vz2Imag), vFour);
+                uint64x2_t mask = vcltq_f64(mag2, vFour);
                 vIter = vsubq_u64(vIter, mask);
 
                 if ((vgetq_lane_u64(mask, 0) | vgetq_lane_u64(mask, 1)) == 0) {
